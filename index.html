@@ -327,20 +327,54 @@ function getRC(results, key) {
   return Number(v) || 0;
 }
 
-// ─ 스토리지 ─
+// ─ 스토리지 (Google Apps Script 백엔드) ─
 let deptData = {};
-let currentViewData = {}; // renderToday에서 설정  // 오늘 작업 중 데이터
+let currentViewData = {}; // renderToday에서 설정
 let history  = [];  // [{date, 자문회:{unique,t3,t2,t1,재적,groups,results}, ...}]
-try { deptData = JSON.parse(localStorage.getItem('deptData')||'{}'); } catch(e){}
-try { history  = JSON.parse(localStorage.getItem('history') ||'[]'); } catch(e){}
+let storageReady = false;
+
+// Google Apps Script 웹앱 URL (구글시트 백엔드)
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby_zVgeSrBGndUVRxgP89V3Zg9ELBAcdBeoULhkdL_kBxdUlxl41DGqNt6rGKLHiCk/exec';
+
+// 공유 클라우드 저장소(구글시트)에서 로드
+async function loadSharedData() {
+  try {
+    const res = await fetch(GAS_URL);
+    const json = await res.json();
+    deptData = json.deptData ? JSON.parse(json.deptData) : {};
+    history  = json.history  ? JSON.parse(json.history)  : [];
+  } catch(e) {
+    console.error('공유 데이터 로드 실패', e);
+    deptData = deptData || {};
+    history  = history  || [];
+  }
+  storageReady = true;
+}
+
+// 공유 클라우드 저장소(구글시트)에 저장
+async function saveSharedData() {
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: 'deptData', value: JSON.stringify(deptData) })
+    });
+    await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: 'history', value: JSON.stringify(history) })
+    });
+  } catch(e) {
+    console.error('공유 데이터 저장 실패', e);
+    throw e;
+  }
+}
+
 let currentDept = '자문회';
 let currentPeriod = 'weekly';
 let currentMainTab = 'input';
 
 const now = new Date();
-// 날짜 피커 초기값 = 오늘
-const reportDateInput = document.getElementById('report-date');
-if(reportDateInput) reportDateInput.value = fmtDate(now);
 // 날짜 피커 초기값 = 오늘
 setTimeout(()=>{const el=document.getElementById('report-date');if(el)el.value=fmtDate(now);},0);
 document.getElementById('today-badge').textContent =
