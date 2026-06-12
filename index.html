@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전도활동 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+
+
+:root{
+  --bg:#f0f2f7; --surface:#fff; --surface2:#f7f8fc; --border:rgba(0,0,0,.08); --border2:rgba(0,0,0,.13);
+  --text:#1a1d2e; --muted:#7b82a0; --accent:#2563eb; --accent-light:#eff4ff;
+  --자문:#6d4aff; --자문-bg:#f1eeff; --장년:#0ea871; --장년-bg:#e8faf2;
+  --부녀:#e8407a; --부녀-bg:#feeef5; --청년:#e07b00; --청년-bg:#fff5e6;
+  --총력:#dc2626; --총력-bg:#fef2f2; --주력:#d97706; --주력-bg:#fffbeb; --활력:#059669; --활력-bg:#ecfdf5;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;min-height:100vh;padding:2rem;}
+/* ── 헤더 ── */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;}
+.logo{font-size:1.8rem;font-weight:900;letter-spacing:-1px;}
+.logo span{color:var(--accent);}
+.date-badge{font-family:'DM Mono',monospace;font-size:.9rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:.45rem 1.1rem;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+/* ── 메인 탭 ── */
+.main-tabs{display:flex;gap:.5rem;margin-bottom:2rem;background:var(--surface);padding:.5rem;border-radius:14px;border:1px solid var(--border);width:fit-content;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.main-tab{padding:.6rem 1.6rem;border-radius:10px;font-size:.95rem;font-weight:700;border:none;cursor:pointer;transition:all .18s;font-family:'Noto Sans KR',sans-serif;background:transparent;color:var(--muted);}
+.main-tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3);}
+/* ── 입력 섹션 ── */
+.input-section{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;margin-bottom:2rem;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+.input-label{font-size:.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:1rem;}
+.dept-tabs{display:flex;gap:.6rem;margin-bottom:1.2rem;flex-wrap:wrap;}
+.dept-tab{padding:.5rem 1.3rem;border-radius:999px;font-size:.9rem;font-weight:600;border:2px solid transparent;cursor:pointer;transition:all .18s;font-family:'Noto Sans KR',sans-serif;}
+.dept-tab[data-dept="자문회"]{color:var(--자문);border-color:var(--자문);background:var(--자문-bg);}
+.dept-tab[data-dept="장년회"]{color:var(--장년);border-color:var(--장년);background:var(--장년-bg);}
+.dept-tab[data-dept="부녀회"]{color:var(--부녀);border-color:var(--부녀);background:var(--부녀-bg);}
+.dept-tab[data-dept="청년회"]{color:var(--청년);border-color:var(--청년);background:var(--청년-bg);}
+.dept-tab.active[data-dept="자문회"]{background:var(--자문);color:#fff;}
+.dept-tab.active[data-dept="장년회"]{background:var(--장년);color:#fff;}
+.dept-tab.active[data-dept="부녀회"]{background:var(--부녀);color:#fff;}
+.dept-tab.active[data-dept="청년회"]{background:var(--청년);color:#fff;}
+textarea{width:100%;height:200px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-family:'DM Mono',monospace;font-size:.85rem;line-height:1.8;padding:1.1rem;resize:vertical;transition:border-color .2s;outline:none;}
+textarea:focus{border-color:var(--accent);}
+textarea::placeholder{color:var(--muted);}
+.btn-row{display:flex;gap:.7rem;margin-top:1.2rem;flex-wrap:wrap;}
+.btn{padding:.7rem 1.7rem;border-radius:12px;font-size:.9rem;font-weight:700;cursor:pointer;border:none;transition:all .18s;font-family:'Noto Sans KR',sans-serif;}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.25);}
+.btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.btn-secondary{background:var(--surface2);color:var(--muted);border:1.5px solid var(--border2);}
+.btn-secondary:hover{color:var(--text);border-color:var(--accent);}
+.btn-danger{background:#fff0f0;color:#dc2626;border:1.5px solid #fca5a5;}
+.btn-danger:hover{background:#dc2626;color:#fff;}
+.parse-preview{margin-top:1.2rem;background:#eff4ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:1.1rem;font-size:.85rem;display:none;}
+.parse-preview-title{color:var(--accent);font-weight:700;margin-bottom:.6rem;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;}
+.parse-row{display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:.35rem;color:var(--muted);}
+.parse-row strong{color:var(--text);}
+/* ── 대시보드 통계 ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.2rem;margin-bottom:2rem;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:1.8rem 1.6rem;box-shadow:0 2px 10px rgba(0,0,0,.05);transition:transform .18s;}
+.stat-card:hover{transform:translateY(-3px);}
+.stat-label{font-size:.78rem;font-weight:700;letter-spacing:1px;color:var(--muted);margin-bottom:.6rem;text-transform:uppercase;}
+.stat-num{font-size:3rem;font-weight:900;line-height:1;letter-spacing:-1px;}
+.stat-sub{font-size:.78rem;color:var(--muted);margin-top:.5rem;}
+/* ── 부서 카드 ── */
+.dept-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem;margin-bottom:2rem;}
+.dept-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);transition:transform .18s;}
+.dept-card:hover{transform:translateY(-3px);}
+.dept-header{padding:1.3rem 1.6rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.dept-name{font-size:1.2rem;font-weight:900;letter-spacing:-.5px;}
+.dept-badge{font-size:.82rem;font-weight:500;padding:.3rem .9rem;border-radius:999px;}
+.dept-body{padding:1.4rem 1.6rem;}
+.group-row{padding:.7rem 0;border-bottom:1px solid var(--border);}
+.group-row:last-of-type{border-bottom:none;}
+.group-top{display:flex;align-items:center;justify-content:space-between;}
+.group-name{font-size:.9rem;font-weight:600;color:var(--muted);}
+.group-count{font-size:1.05rem;font-weight:900;font-family:'DM Mono',monospace;}
+.unique-row{margin-top:1rem;padding:1.1rem 1.2rem;border-radius:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;}
+.unique-label{font-size:.9rem;font-weight:700;}
+.unique-sub{font-size:.75rem;margin-top:3px;opacity:.75;line-height:1.6;}
+.unique-num{font-size:2.2rem;font-weight:900;font-family:'DM Mono',monospace;letter-spacing:-1px;}
+.intensity-section{margin-top:1.2rem;border-top:1px solid var(--border);padding-top:1.2rem;display:flex;flex-direction:column;gap:.9rem;}
+.intensity-block{border-radius:12px;padding:.9rem 1rem;}
+.intensity-header{display:flex;align-items:center;gap:10px;margin-bottom:.6rem;flex-wrap:wrap;}
+.intensity-badge{font-size:.72rem;font-weight:800;letter-spacing:1px;padding:3px 10px;border-radius:999px;}
+.intensity-cnt{font-size:.82rem;font-family:'DM Mono',monospace;font-weight:700;margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.intensity-names{display:flex;flex-wrap:wrap;gap:5px;}
+.i-chip{font-size:.8rem;padding:3px 10px;border-radius:7px;font-weight:600;display:inline-flex;align-items:center;gap:4px;}
+.i-chip-grp{font-size:.65rem;opacity:.7;font-weight:400;}
+/* ── 결과 테이블 ── */
+.result-section{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:1.8rem;margin-bottom:1.5rem;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+.section-title{font-size:.85rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text);margin-bottom:1.2rem;opacity:.6;}
+.summary-table{width:100%;border-collapse:collapse;font-size:.9rem;}
+.summary-table th{text-align:left;padding:.7rem 1rem;font-size:.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap;}
+.summary-table td{padding:.9rem 1rem;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
+.summary-table tr:last-child td{border-bottom:none;background:#f8faff;font-weight:700;}
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:70px;}
+.progress-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+/* ── 추이 탭 ── */
+.trend-wrapper{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+.period-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.period-tab{padding:.5rem 1.4rem;border-radius:10px;font-size:.9rem;font-weight:700;border:none;cursor:pointer;transition:all .18s;font-family:'Noto Sans KR',sans-serif;background:var(--surface2);color:var(--muted);border:1.5px solid var(--border);}
+.period-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+/* ── 날짜 검색 ── */
+.search-bar{display:flex;gap:.8rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;}
+.search-bar input{padding:.6rem 1rem;border-radius:10px;border:1.5px solid var(--border);font-family:'Noto Sans KR',sans-serif;font-size:.9rem;outline:none;transition:border-color .2s;background:var(--surface2);}
+.search-bar input:focus{border-color:var(--accent);}
+/* ── 기간 카드 ── */
+.period-card{background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:1.4rem;margin-bottom:1.2rem;transition:box-shadow .2s;}
+.period-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);}
+.period-card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;cursor:pointer;}
+.period-label{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.period-title{font-size:1.15rem;font-weight:900;color:var(--text);margin-top:2px;}
+.period-meta{font-size:.75rem;color:var(--muted);margin-top:3px;}
+.period-total{text-align:right;}
+.period-total-num{font-size:2.2rem;font-weight:900;color:var(--accent);line-height:1;}
+.period-total-sub{font-size:.72rem;color:var(--muted);}
+.tier-summary-bar{margin:1rem 0;}
+.tier-bar-track{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;margin-top:4px;}
+.tier-seg{height:100%;border-radius:4px;transition:flex .5s;}
+.tier-labels{display:flex;justify-content:space-between;font-size:.78rem;font-weight:700;}
+/* ── 부서별 미니카드 그리드 ── */
+.mini-dept-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem;margin-top:1rem;}
+.mini-dept-card{background:var(--surface);border-radius:12px;padding:1rem;border:1px solid var(--border);border-top-width:3px;transition:box-shadow .18s;cursor:pointer;}
+.mini-dept-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1);}
+.mini-dept-name{font-size:.9rem;font-weight:800;margin-bottom:.4rem;}
+.mini-dept-unique{font-size:1.4rem;font-weight:900;font-family:'DM Mono',monospace;line-height:1;}
+.mini-dept-rate{font-size:.72rem;color:var(--muted);margin-top:2px;}
+.mini-tier-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;margin-top:.5rem;}
+.mini-tier-nums{display:flex;justify-content:space-between;font-size:.68rem;margin-top:4px;}
+/* ── 일별 상세 모달 ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px;padding:2rem;max-width:900px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2);margin:auto;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid var(--border);}
+.modal-title{font-size:1.3rem;font-weight:900;}
+.modal-close{background:var(--surface2);border:none;border-radius:10px;width:36px;height:36px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;color:var(--muted);}
+.modal-close:hover{background:var(--border);color:var(--text);}
+.modal-dept-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.modal-dept-tab{padding:.4rem 1rem;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid var(--border);background:transparent;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
+.modal-dept-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.name-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:.6rem;}
+.name-tag{padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:600;}
+/* ── 날짜 기록 테이블 ── */
+.daily-row{cursor:pointer;transition:background .15s;}
+.daily-row:hover{background:#f0f4ff !important;}
+/* ── 증감 배지 ── */
+.delta-up{color:#059669;font-size:.75rem;font-weight:700;}
+.delta-down{color:#dc2626;font-size:.75rem;font-weight:700;}
+.delta-same{color:var(--muted);font-size:.75rem;}
+/* ── 빈 상태 ── */
+.empty-state{text-align:center;padding:5rem 2rem;color:var(--muted);}
+.empty-icon{font-size:3.5rem;margin-bottom:1.2rem;}
+.empty-text{font-size:1rem;line-height:2;}
+/* ── SVG 차트 ── */
+.chart-wrap{overflow-x:auto;margin-top:1rem;}
+@media(max-width:640px){body{padding:1rem;}.stats-grid{grid-template-columns:repeat(2,1fr);}.stat-num{font-size:2.2rem;}}
+/* ── 전도결과 섹션 ── */
+.result-funnel-wrap{margin-top:1.2rem;border-top:1px solid var(--border);padding-top:1rem;}
+.result-funnel-title{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.8rem;}
+
+
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">전도활동<span>대시보드</span></div>
+  <div style="display:flex;align-items:center;gap:.6rem;">
+    <span id="sync-status" style="font-size:.75rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:.3rem .8rem;border-radius:999px;display:flex;align-items:center;gap:4px;">🔄 동기화 중...</span>
+    <div class="date-badge" id="today-badge"></div>
+  </div>
+</div>
+
+<div class="main-tabs">
+  <button class="main-tab active" onclick="switchMain('input')">📥 보고 입력</button>
+  <button class="main-tab" onclick="switchMain('today')">📊 오늘 현황</button>
+  <button class="main-tab" onclick="switchMain('trend')">📈 추이 분석</button>
+  <button class="main-tab" onclick="switchMain('daily')">📋 날짜별 기록</button>
+</div>
+
+<div id="tab-input">
+  <div class="input-section">
+    <div class="input-label">📋 보고서 입력</div>
+    <div class="dept-tabs">
+      <button class="dept-tab active" data-dept="자문회">자문회</button>
+      <button class="dept-tab" data-dept="장년회">장년회</button>
+      <button class="dept-tab" data-dept="부녀회">부녀회</button>
+      <button class="dept-tab" data-dept="청년회">청년회</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:1rem;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <label style="font-size:.82rem;font-weight:700;color:var(--muted);">📅 보고 날짜</label>
+        <input type="date" id="report-date" style="padding:.5rem .9rem;border-radius:10px;border:1.5px solid var(--border);font-family:inherit;font-size:.9rem;outline:none;background:var(--surface2);color:var(--text);cursor:pointer;" />
+      </div>
+      <span style="font-size:.75rem;color:var(--muted);">* 전날 보고를 오늘 입력할 때 날짜를 변경하세요</span>
+    </div>
+    <textarea id="raw-input" placeholder="텔레그램 원문을 여기에 그대로 붙여넣으세요 (줄바꿈 있어도 없어도 가능)"></textarea>
+    <div class="parse-preview" id="parse-preview">
+      <div class="parse-preview-title">🔍 파싱 미리보기</div>
+      <div id="preview-content"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="parseAndAdd()">✓ 집계에 추가</button>
+      <button class="btn btn-secondary" onclick="loadSample('부녀회')">부녀회 샘플</button>
+      <button class="btn btn-secondary" onclick="loadSample('자문회')">자문회 샘플</button>
+      <button class="btn btn-secondary" onclick="loadSample('청년회')">청년회 샘플</button>
+      <button class="btn btn-secondary" onclick="loadSample('장년회')">장년회 샘플</button>
+      <button class="btn btn-danger" onclick="clearAll()">전체 초기화</button>
+    </div>
+  </div>
+</div>
+
+<div id="tab-today" style="display:none;">
+  <div id="today-empty" class="empty-state" style="display:none;">
+    <div class="empty-icon">⛪</div>
+    <div class="empty-text">오늘 아직 보고서가 입력되지 않았어요.<br>보고 입력 탭에서 데이터를 추가해주세요.</div>
+  </div>
+  <div id="today-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.8rem;">
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <!-- 조회 날짜 -->
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <label style="font-size:.82rem;font-weight:700;color:var(--text);">📅 조회 날짜</label>
+          <select id="view-date" onchange="renderToday()"
+            style="padding:.5rem .9rem;border-radius:10px;border:1.5px solid var(--accent);font-family:inherit;font-size:.9rem;font-weight:600;outline:none;background:var(--accent-light);color:var(--accent);cursor:pointer;min-width:160px;">
+            <option value="">오늘 (최근 입력)</option>
+          </select>
+        </div>
+        <!-- 비교 기준일 -->
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <label style="font-size:.82rem;font-weight:700;color:var(--muted);">📊 비교 기준일</label>
+          <select id="compare-date" onchange="renderToday()"
+            style="padding:.5rem .9rem;border-radius:10px;border:1.5px solid var(--border);font-family:inherit;font-size:.9rem;outline:none;background:var(--surface2);color:var(--text);cursor:pointer;min-width:160px;">
+            <option value="">비교 안 함</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:.7rem;">
+        <button class="btn btn-secondary" onclick="captureToday('download')" style="display:flex;align-items:center;gap:.5rem;">📷 이미지 저장</button>
+        <button class="btn btn-primary" onclick="captureToday('copy')" style="display:flex;align-items:center;gap:.5rem;">📋 클립보드 복사</button>
+      </div>
+    </div>
+    <div id="today-capture-area">
+      <div id="view-date-banner" style="display:none;background:var(--accent);color:#fff;border-radius:12px;padding:.6rem 1.2rem;margin-bottom:1rem;font-size:.9rem;font-weight:700;align-items:center;gap:.5rem;"></div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div id="activity-overview"></div>
+      <div id="dept-grid" style="display:none"></div>
+      <div class="result-section">
+        <div class="section-title">전도 프로세스 종합</div>
+        <div id="process-view"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-trend" style="display:none;">
+  <div class="trend-wrapper">
+    <div class="period-tabs">
+      <button class="period-tab active" onclick="switchPeriod('weekly',this)">주간</button>
+      <button class="period-tab" onclick="switchPeriod('monthly',this)">월간</button>
+      <button class="period-tab" onclick="switchPeriod('quarterly',this)">분기</button>
+      <button class="period-tab" onclick="switchPeriod('yearly',this)">연간</button>
+    </div>
+    <div id="trend-content"></div>
+  </div>
+</div>
+
+<div id="tab-daily" style="display:none;">
+  <div class="result-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.8rem;">
+      <div class="section-title" style="margin-bottom:0">날짜별 누적 기록</div>
+      <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
+        <input type="text" id="date-search" placeholder="날짜 검색 (예: 2026-06)"
+          oninput="renderDailyTable()"
+          style="padding:.6rem 1rem;border-radius:10px;border:1.5px solid var(--border);font-family:inherit;font-size:.9rem;outline:none;background:var(--surface2);" />
+        <select id="dept-filter" onchange="renderDailyTable()"
+          style="padding:.6rem 1rem;border-radius:10px;border:1.5px solid var(--border);font-family:inherit;font-size:.9rem;outline:none;background:var(--surface2);">
+          <option value="all">전체 부서</option>
+          <option value="자문회">자문회</option>
+          <option value="장년회">장년회</option>
+          <option value="부녀회">부녀회</option>
+          <option value="청년회">청년회</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="summary-table">
+        <thead><tr>
+          <th>날짜</th>
+          <th style="color:var(--자문)">자문회</th>
+          <th style="color:var(--장년)">장년회</th>
+          <th style="color:var(--부녀)">부녀회</th>
+          <th style="color:var(--청년)">청년회</th>
+          <th>전체</th>
+        </tr></thead>
+        <tbody id="daily-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title"></div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+
+
+const DEPT_COLORS = { 자문회:'--자문', 장년회:'--장년', 부녀회:'--부녀', 청년회:'--청년' };
+const DEPT_RAW    = { 자문회:'#6d4aff', 장년회:'#0ea871', 부녀회:'#e8407a', 청년회:'#e07b00' };
+const DEPT_BG     = { 자문회:'--자문-bg', 장년회:'--장년-bg', 부녀회:'--부녀-bg', 청년회:'--청년-bg' };
+const RESULT_KEYS = ['신규찾기','연결','육따','영따','복음방','센터확답'];
+const ALL_DEPTS   = ['자문회','장년회','부녀회','청년회'];
+
+// results 구조 호환: {count:N} 또는 {N} 직접 숫자 모두 처리
+function getRC(results, key) {
+  if (!results || results[key] === undefined) return 0;
+  const v = results[key];
+  if (typeof v === 'object') return v.count || 0;
+  return Number(v) || 0;
+}
+
+// ─ 스토리지 ─
+let deptData = {};
+let currentViewData = {}; // renderToday에서 설정  // 오늘 작업 중 데이터
+let history  = [];  // [{date, 자문회:{unique,t3,t2,t1,재적,groups,results}, ...}]
+try { deptData = JSON.parse(localStorage.getItem('deptData')||'{}'); } catch(e){}
+try { history  = JSON.parse(localStorage.getItem('history') ||'[]'); } catch(e){}
+let currentDept = '자문회';
+let currentPeriod = 'weekly';
+let currentMainTab = 'input';
+
+const now = new Date();
+// 날짜 피커 초기값 = 오늘
+const reportDateInput = document.getElementById('report-date');
+if(reportDateInput) reportDateInput.value = fmtDate(now);
+// 날짜 피커 초기값 = 오늘
+setTimeout(()=>{const el=document.getElementById('report-date');if(el)el.value=fmtDate(now);},0);
+document.getElementById('today-badge').textContent =
+  `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+// ─────────────────────────────────────────────────────────────
+// 핵심 파서 v3: 줄바꿈 유무, 다양한 구분자, 괄호 패턴 모두 처리
+// ─────────────────────────────────────────────────────────────
+
+// 노이즈 단어 — 이름으로 잘못 파싱되면 안 되는 단어들
+const NOISE_WORDS = new Set([
+  '명단','교사','인도자','기준','누적','찾기','만남','센터','관리','온라인',
+  '대면','줌','생활','당근','소모임','이상','이하','모두','전화','번호',
+  '약속','기간','개월','성경','공부','수강','이상','이하','주일','매주',
+  '부서','일자','재적','보고','결과','활동','전도','전도단','센터관리',
+  '신규','연결','육따','영따','복음방','확답','센터확답'
+]);
+
+function extractNames(str) {
+  // 점(.)도 구분자로 처리, 괄호 안 내용 먼저 제거
+  const cleaned = str
+    .replace(/[（(][^)）]*[)）]/g, '')   // (괄호 내용) 전체 제거
+    .replace(/대면:\d+\/줌:\d+/gi, '')   // 대면:3/줌:13
+    .replace(/[.。·]/g, ' ')             // 점 → 공백 (장년회 구분자)
+    .replace(/\d+/g, ' ');               // 숫자 제거
+
+  return cleaned
+    .split(/[,，\s　]+/)
+    .map(s => s.trim())
+    .filter(s => /^[가-힣]{2,5}$/.test(s) && !NOISE_WORDS.has(s));
+}
+
+// 결과 섹션 이름줄: "김연희(이금숙)" 형태에서 피전도자만 추출
+function extractResultNames(str) {
+  const names = [];
+  // 패턴1: 이름(교사) — 피전도자가 앞
+  const pattern1 = /([가-힣]{2,5})\s*[（(][가-힣]{2,5}[)）]/g;
+  let m;
+  while ((m = pattern1.exec(str)) !== null) {
+    if (!NOISE_WORDS.has(m[1])) names.push(m[1]);
+  }
+  // 패턴1에서 못 찾았으면 일반 이름 추출 시도
+  if (!names.length) {
+    const cleaned = str
+      .replace(/[（(][^)）]*[)）]/g, '')
+      .replace(/명단/g, '');
+    extractNames(cleaned).forEach(n => names.push(n));
+  }
+  return names;
+}
+
+function parseReport(raw) {
+  const result = {
+    dept: '', date: '', 재적: 0,
+    groups: { 센터관리: [], 전도활동: [], 전도단: [] },
+    results: {}
+  };
+  RESULT_KEYS.forEach(k => result.results[k] = { count: 0, names: [] });
+
+  // 1단계: 이모지 제거 + 줄바꿈 정규화
+  let text = raw
+    .replace(/[\u{1F300}-\u{1FFFF}]/gu, ' ')
+    .replace(/[📋📶✅]/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  // 2단계: 섹션 키워드 앞에 강제 줄바꿈 삽입
+  // (줄바꿈 없이 붙어있는 원문 처리용)
+  const SECTION_KW = [
+    '부서', '일자', '재적',
+    '전도활동보고', '전도결과보고',
+    '센터관리', '전도활동', '전도단',
+    '신규찾기', '연결', '육따', '영따', '복음방', '센터확답'
+  ];
+  SECTION_KW.forEach(kw => {
+    // "키워드 :" 또는 "키워드:" 패턴 앞에 줄바꿈
+    const re = new RegExp(`(?<!\n)(${kw}\\s*[：:])`, 'g');
+    text = text.replace(re, '\n$1');
+  });
+
+  // 번호) 패턴 앞 줄바꿈
+  text = text.replace(/(?<!\n)(\d+\))/g, '\n$1');
+
+  // "- 한글" 앞 줄바꿈 (대시+이름이 붙어있을 때)
+  text = text.replace(/(?<!\n)([-－]\s*[가-힣])/g, '\n$1');
+
+  // ✅ 기준 섹션 이후는 무시 (보고 내용이 아님)
+  const cutIdx = text.indexOf('✅');
+  if (cutIdx > -1) text = text.substring(0, cutIdx);
+  const cutIdx2 = text.search(/기준\s*\*/);
+  if (cutIdx2 > -1) text = text.substring(0, cutIdx2);
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  let mode = null;
+  // mode: null | 'group:센터관리' | 'group:전도활동' | 'group:전도단' | 'result:KEY'
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // ── 메타 ──
+    const deptM = line.match(/부서\s*[：:]\s*([가-힣]+)/);
+    if (deptM) { result.dept = deptM[1]; continue; }
+
+    const dateM = line.match(/일자\s*[：:]\s*(.+)/);
+    if (dateM) { result.date = dateM[1].trim().replace(/\s/g,''); continue; }
+
+    const rejeokM = line.match(/재적\s*[：:]\s*(\d+)/);
+    if (rejeokM) { result.재적 = parseInt(rejeokM[1]); continue; }
+
+    // ── 섹션 헤더 — 그룹 ──
+    // 반드시 숫자) 패턴이거나 줄 시작이어야 진짜 헤더
+    const isSectionHeader = /^\d+\)/.test(line) || /^[가-힣]/.test(line);
+
+    if (isSectionHeader && /센터.?관리/.test(line) && !/결과/.test(line)) {
+      mode = 'group:센터관리';
+      // 같은 줄에 이름이 있는 경우 처리 (헤더 뒤에 바로 이름)
+      const afterColon = line.replace(/.*센터.?관리\s*[：:]\s*\d*명?/, '');
+      const ns = extractNames(afterColon);
+      if (ns.length) result.groups.센터관리.push(...ns);
+      continue;
+    }
+    if (isSectionHeader && /전도.?활동/.test(line) && !/결과/.test(line) && !/보고/.test(line)) {
+      mode = 'group:전도활동';
+      const afterColon = line.replace(/.*전도.?활동\s*[：:]\s*\d*명?/, '');
+      const ns = extractNames(afterColon);
+      if (ns.length) result.groups.전도활동.push(...ns);
+      continue;
+    }
+    if (isSectionHeader && /전도단/.test(line) && !/결과/.test(line)) {
+      mode = 'group:전도단';
+      const afterColon = line.replace(/.*전도단\s*[：:]\s*\d*명?[^가-힣]*/, '');
+      const ns = extractNames(afterColon);
+      if (ns.length) result.groups.전도단.push(...ns);
+      continue;
+    }
+
+    // ── 섹션 헤더 — 전도결과 ──
+    let resultMatched = false;
+    for (const key of RESULT_KEYS) {
+      if (line.includes(key) && /\d+\s*명/.test(line)) {
+        const cntM = line.match(/(\d+)\s*명/);
+        result.results[key].count = cntM ? parseInt(cntM[1]) : 0;
+        mode = 'result:' + key;
+        resultMatched = true;
+        // 같은 줄에 이름 있으면 추출
+        const afterNum = line.replace(/.*\d+\s*명/, '');
+        const ns = extractResultNames(afterNum);
+        if (ns.length) result.results[key].names.push(...ns);
+        break;
+      }
+    }
+    if (resultMatched) continue;
+
+    // "- 명단(인도자)" "- 명단(교사)" 같은 더미 줄 → 무시
+    if (/^[-－]?\s*명단/.test(line)) continue;
+
+    // ── 이름 줄 ──
+    const startsWithDash = /^[-－]/.test(line);
+    const looksLikeNames = /^[가-힣]/.test(line);
+
+    if ((startsWithDash || looksLikeNames) && mode) {
+      const content = line.replace(/^[-－]\s*/, '');
+
+      if (mode.startsWith('group:')) {
+        const grp = mode.replace('group:', '');
+        const ns = extractNames(content);
+        result.groups[grp].push(...ns);
+
+      } else if (mode.startsWith('result:')) {
+        const key = mode.replace('result:', '');
+        const ns = extractResultNames(content);
+        result.results[key].names.push(...ns);
+      }
+    }
+  }
+
+  // 중복 제거
+  Object.keys(result.groups).forEach(g => {
+    result.groups[g] = [...new Set(result.groups[g])];
+  });
+  RESULT_KEYS.forEach(k => {
+    result.results[k].names = [...new Set(result.results[k].names)];
+  });
+
+  return result;
+}
+
+
+// ─ 미리보기 ─
+document.getElementById('raw-input').addEventListener('input', function() {
+  const text = this.value.trim();
+  if (!text) { document.getElementById('parse-preview').style.display='none'; return; }
+  const p = parseReport(text);
+  const u = getUnique(p.groups);
+  document.getElementById('parse-preview').style.display = 'block';
+  document.getElementById('preview-content').innerHTML = `
+    <div class="parse-row">
+      <span>부서 <strong>${p.dept||'(감지중)'}</strong></span>
+      <span>재적 <strong>${p.재적}명</strong></span>
+      <span>일자 <strong>${p.date||'-'}</strong></span>
+    </div>
+    <div class="parse-row">
+      <span>센터관리 <strong>${p.groups.센터관리.length}명</strong></span>
+      <span>전도활동 <strong>${p.groups.전도활동.length}명</strong></span>
+      <span>전도단 <strong>${p.groups.전도단.length}명</strong></span>
+      <span style="color:var(--accent)">→ 실질 <strong>${u.size}명</strong></span>
+    </div>
+    <div class="parse-row" style="font-size:.75rem">
+      ${RESULT_KEYS.map(k=>`<span>${k} <strong>${p.results[k].count}</strong></span>`).join('')}
+    </div>`;
+});
+
+// ─ 유틸 ─
+function getUnique(g){return new Set([...g.센터관리,...g.전도활동,...g.전도단]);}
+function fmtDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function pct(n,d){return d?Math.round(n/d*100):0;}
+
+function populateCompareDates() {
+  const compareSel = document.getElementById('compare-date');
+  const viewSel    = document.getElementById('view-date');
+  const currentCompare = compareSel ? compareSel.value : '';
+  const currentView    = viewSel    ? viewSel.value    : '';
+  const dates = [...history].sort((a,b)=>a.date<b.date?1:-1).map(r=>r.date);
+
+  if (compareSel) {
+    compareSel.innerHTML = '<option value="">비교 안 함</option>'
+      + dates.map(d => `<option value="${d}"${d===currentCompare?' selected':''}>${d}</option>`).join('');
+  }
+  if (viewSel) {
+    viewSel.innerHTML = '<option value="">오늘 (최근 입력)</option>'
+      + dates.map(d => `<option value="${d}"${d===currentView?' selected':''}>${d}</option>`).join('');
+  }
+}
+
+function calcTiers(groups){
+  const u=getUnique(groups), pg={};
+  ['센터관리','전도활동','전도단'].forEach(g=>groups[g].forEach(n=>{if(!pg[n])pg[n]=[];pg[n].push(g);}));
+  const t3=[],t2=[],t1=[];
+  [...u].forEach(n=>{const c=(pg[n]||[]).length;if(c>=3)t3.push(n);else if(c===2)t2.push(n);else t1.push(n);});
+  return {unique:u.size,t3,t2,t1};
+}
+
+// ─ 탭 전환 ─
+function switchMain(tab){
+  currentMainTab=tab;
+  if (!storageReady && tab !== 'input') {
+    // 아직 로딩 중이면 잠시 대기 후 재시도
+    setTimeout(() => switchMain(tab), 300);
+    return;
+  }
+  ['input','today','trend','daily'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
+  });
+  document.querySelectorAll('.main-tab').forEach((b,i)=>{
+    b.classList.toggle('active',['input','today','trend','daily'][i]===tab);
+  });
+  if(tab!=='input') {
+    loadSharedData().then(() => {
+      populateCompareDates();
+      if(tab==='today') renderToday();
+      if(tab==='trend') renderTrend(currentPeriod);
+      if(tab==='daily') renderDailyTable();
+    });
+  }
+}
+
+// ─ 부서 탭 ─
+document.querySelectorAll('.dept-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.dept-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDept=btn.dataset.dept;
+    document.getElementById('raw-input').value=deptData[currentDept]?.rawText||'';
+    document.getElementById('raw-input').dispatchEvent(new Event('input'));
+  });
+});
+
+// ─ parseAndAdd ─
+function parseAndAdd(){
+  const text=document.getElementById('raw-input').value.trim();
+  if(!text){alert('보고서를 입력해주세요');return;}
+  const parsed=parseReport(text);
+  const dept=ALL_DEPTS.includes(parsed.dept)?parsed.dept:currentDept;
+  parsed.dept=dept;
+  const tiers=calcTiers(parsed.groups);
+  parsed.unique=tiers.unique;
+  parsed.t3=tiers.t3; parsed.t2=tiers.t2; parsed.t1=tiers.t1;
+  parsed.rawText=text;
+  deptData[dept]=parsed;
+
+  const reportDateEl=document.getElementById('report-date');
+  const today=reportDateEl&&reportDateEl.value?reportDateEl.value:fmtDate(now);
+  let row=history.find(h=>h.date===today);
+  if(!row){row={date:today};history.push(row);}
+  // 풍부한 구조로 저장: 명단까지 보관
+  row[dept]={
+    unique:tiers.unique, t3:tiers.t3.length, t2:tiers.t2.length, t1:tiers.t1.length,
+    t3names:tiers.t3, t2names:tiers.t2, t1names:tiers.t1,
+    재적:parsed.재적,
+    groups:{센터관리:[...parsed.groups.센터관리],전도활동:[...parsed.groups.전도활동],전도단:[...parsed.groups.전도단]},
+    results:RESULT_KEYS.reduce((o,k)=>{o[k]=parsed.results[k].count;return o;},{})
+  };
+  const syncEl0 = document.getElementById('sync-status');
+  if (syncEl0) syncEl0.innerHTML = '🔄 저장 중...';
+  saveSharedData().then(() => {
+    if (syncEl0) syncEl0.innerHTML = '✅ 공유 데이터 연결됨';
+  });
+  alert(`✅ ${dept} 집계 완료! (모든 사단원에게 공유됨)\n실질: ${tiers.unique}명 (총력 ${tiers.t3.length} 주력 ${tiers.t2.length} 활력 ${tiers.t1.length})`);
+  if(currentMainTab==='today') renderToday();
+}
+
+async function clearAll(){
+  if(!confirm('모든 데이터를 초기화할까요? (다른 사단원의 데이터도 함께 삭제됩니다)'))return;
+  deptData={};history=[];
+  try{ await saveSharedData(); }catch(e){}
+  document.getElementById('raw-input').value='';
+  document.getElementById('parse-preview').style.display='none';
+  if(currentMainTab==='today') renderToday();
+}
+
+const SAMPLES = {
+  부녀회: `부서 : 부녀회\n일자 : 6월1일\n전도활동보고\n- 재적 : 127명\n1) 센터관리 : 24명\n- 서선경 박주혜, 김상숙, 조영신, 김은자,임향숙 신의숙, 박혜정, 강수덕, 정희원, 김진이, 이복남, 소정희, 엄미란, 엄미덕, 선은숙, 이복순, 이혜령, 하승미, 이금숙,김민경, 이혜랑, 신원선, 김명현\n2) 전도활동 : 32명\n- 이미경, 강수덕, 임향숙, 김진이, 정희원, 신의숙, 박혜정, 최명순, 이명희, 이복남, 소정희, 엄미란, 최경애, 안경미, 이진옥, 엄미덕, 홍진화, 이진아, 오미정, 배서연, 이은주, 이금숙, 김민경, 문희정, 이혜랑, 김지선, 김윤미, 신원선, 김미숙, 김나경, 최은주, 김명현\n3) 전도단 : 32명\n- 최명순, 이명희, 이복남, 소정희, 최경애,안경미, 이은경, 이금숙, 김민경, 김진이,정희원, 신의숙, 배서연, 신원선, 김미숙,김나경, 배정숙, 천유진, 전지혜, 강수덕,임향숙, 이진아, 오은옥, 문희정, 최은주, 이한나, 임관희, 곽영애, 홍진화, 오미정,이윤옥, 이정인\n전도결과보고\n1) 신규찾기 : 1명\n- 김연희(이금숙)\n2) 연결 : 5명\n- 정미숙(이명희)\n- 정국자(홍진화)\n- 고나영(조영희)\n- 김양래(조영신)\n- 권종길(하분례)\n3) 육따 : 0명\n4) 영따 : 0명\n5) 복음방 : 0명\n6) 센터확답 : 1명\n- 정경화(최명순)`,
+
+  자문회: `부서: 자문회\n일자: 6월1일\n재적: 77명\n전도활동보고\n1) 센터관리 : 8명\n황영숙 이길봉 김경열 최선하 김금순 문춘자 정숙재 조순희\n2) 전도활동 : 16명\n정숙재 이길봉 최정원 최선하 김금순 김경열 이상재 조순희 문춘자 김연임 김영임 김순하 황영숙 이운세 조금순 이종윤\n3) 전도단 : 16명(대면:3/줌:13)\n조순희 김순하 김연임 김영임 강순식 이영자 이길봉 이종윤 황영숙 윤종원 김동균 정숙재 김옥기 김금순 최선하 문춘자\n전도결과보고\n1) 신규찾기 : 0명\n2) 연결 : 0명\n3) 육따 : 0명\n4) 영따 : 0명\n5) 복음방 : 1명\n- 강충규(조순희)\n6) 센터확답 : 0명`,
+
+  청년회: `부서: 청년회\n일자: 6월1일\n재적: 86명\n전도활동보고\n1) 센터관리 : 3명\n- 문소윤 양영규 유호준\n2) 전도활동 : 12명\n- 윤빛나(만남) 이장원(만남) 문소윤(센터관리) 양영규(센터관리) 유호준(센터관리) 김종훈(온라인) 김현지(온라인) 이선민(온라인) 서경범(온라인) 이상훈(온라인) 김재용(온라인) 홍성화(온라인)\n3) 전도단 : 5명\n- 서경범 김선우 최영웅 홍성화 윤빛나\n전도결과보고\n1) 신규찾기 : 1명\n- 명단(인도자)\n김교빈(서경범)\n2) 연결 : 3명\n- 명단(인도자)\n박건우(홍성화)\n박도현(이장원)\n이재경(이선민)\n3) 육따 : 0명\n4) 영따 : 0명\n5) 복음방 : 1명\n- 명단(교사)\n백경희(이선민)\n6) 센터확답 : 0명`,
+
+  장년회: `부서: 장년회\n일자: 6월1일\n재적: 63명\n전도활동보고\n1) 센터관리 : 3명\n- 송방덕.박재현.홍만수\n2) 전도활동 : 2명\n-윤형식 서형호\n3) 전도단 : 10명\n- 송방덕.김영회.이형운.이상호 서형호.신영호.윤형식.김기현 김진경.이세몽.\n전도결과보고\n1) 신규찾기 : 1명\n- 명단(인도자)\n장도상(서형호)\n2) 연결 : 0명\n3) 육따 : 0명\n4) 영따 : 0명\n5) 복음방 : 0명\n6) 센터확답 : 0명`
+};
+
+
+function loadSample(dept){
+  document.querySelectorAll('.dept-tab').forEach(b=>b.classList.toggle('active',b.dataset.dept===dept));
+  currentDept=dept;
+  document.getElementById('raw-input').value=SAMPLES[dept]||'';
+  document.getElementById('raw-input').dispatchEvent(new Event('input'));
+}
+
+// ══════════════════════════════════════════════════════
+// 캡처 기능
+// ══════════════════════════════════════════════════════
+async function captureToday(mode) {
+  const el = document.getElementById('today-capture-area');
+  if (!el) return;
+
+  const btn = event.currentTarget;
+  const origText = btn.innerHTML;
+  btn.innerHTML = '⏳ 처리 중...';
+  btn.disabled = true;
+
+  try {
+    // 날짜 워터마크 추가
+    const watermark = document.createElement('div');
+    watermark.id = 'capture-watermark';
+    const dateStr = fmtDate(now);
+    watermark.style.cssText = 'text-align:right;padding:.5rem 1rem;font-size:.78rem;color:#9ca3af;font-family:DM Mono,monospace;';
+    watermark.textContent = `전도활동 대시보드 · ${dateStr} 기준`;
+    el.appendChild(watermark);
+
+    const canvas = await html2canvas(el, {
+      backgroundColor: '#f0f2f7',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      windowWidth: el.scrollWidth,
+      scrollX: 0, scrollY: 0,
+    });
+
+    el.removeChild(watermark);
+
+    if (mode === 'download') {
+      const link = document.createElement('a');
+      link.download = `전도활동_${dateStr}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      btn.innerHTML = '✅ 저장 완료!';
+    } else {
+      // 클립보드 복사
+      canvas.toBlob(async (blob) => {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          btn.innerHTML = '✅ 복사 완료!';
+        } catch(e) {
+          // 클립보드 API 지원 안 할 경우 다운로드로 fallback
+          const link = document.createElement('a');
+          link.download = `전도활동_${dateStr}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          btn.innerHTML = '✅ 저장됨 (클립보드 미지원)';
+        }
+      }, 'image/png');
+    }
+  } catch(e) {
+    btn.innerHTML = '❌ 오류 발생';
+    console.error(e);
+  }
+
+  setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 2500);
+}
+
+// ── 전도 프로세스 Funnel ──
+var FUNNEL_META = {
+  '신규찾기': { icon:'📞', label:'찾기',   color:'#2563eb', bg:'#eff4ff' },
+  '연결':     { icon:'🤝', label:'연결',   color:'#7c3aed', bg:'#f5f3ff' },
+  '육따':     { icon:'📅', label:'육따',   color:'#b45309', bg:'#fffbeb' },
+  '영따':     { icon:'📖', label:'영따',   color:'#0369a1', bg:'#f0f9ff' },
+  '복음방':   { icon:'🙏', label:'복방',   color:'#047857', bg:'#ecfdf5' },
+  '센터확답': { icon:'🏛️', label:'확답',   color:'#be185d', bg:'#fdf2f8' }
+};
+
+function makeResultGrid(results, prevResults) {
+  var steps = RESULT_KEYS.map(function(k) {
+    return { key: k, cnt: getRC(results, k) };
+  });
+  var maxVal = Math.max.apply(null, steps.map(function(s){ return s.cnt; })) || 1;
+
+  var html = '<div style="display:flex;align-items:stretch;gap:0;width:100%;">';
+  steps.forEach(function(s, i) {
+    var m = FUNNEL_META[s.key];
+    var cnt = s.cnt;
+    var pv = prevResults ? getRC(prevResults, s.key) : null;
+    var diff = pv !== null ? cnt - pv : null;
+    var diffHtml = diff === null ? ''
+      : diff > 0 ? '<div style="color:#059669;font-size:.62rem;font-weight:700;margin-top:1px">&#9650;'+diff+'</div>'
+      : diff < 0 ? '<div style="color:#dc2626;font-size:.62rem;font-weight:700;margin-top:1px">&#9660;'+Math.abs(diff)+'</div>'
+      : '<div style="color:#9ca3af;font-size:.62rem;margin-top:1px">&#8594;</div>';
+    var active = cnt > 0;
+    var cardBg = active ? m.bg : '#f9fafb';
+    var cardColor = active ? m.color : '#c0c4ce';
+    var borderColor = active ? m.color + '55' : '#e5e7eb';
+    var barH = cnt > 0 ? Math.max(3, Math.round(cnt / maxVal * 20)) : 3;
+    var isLast = i === steps.length - 1;
+
+    html += '<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;">';
+    html += '<div style="width:100%;height:100px;background:'+cardBg+';border:1.5px solid '+borderColor+';border-radius:10px;padding:.5rem .25rem;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;">';
+    html += '<div style="font-size:.9rem;line-height:1">'+m.icon+'</div>';
+    html += '<div style="font-size:.65rem;color:'+cardColor+';font-weight:700;margin-top:3px;white-space:nowrap;">'+m.label+'</div>';
+    html += '<div style="font-size:1.4rem;font-weight:900;font-family:DM Mono,monospace;color:'+cardColor+';line-height:1.2;margin-top:1px">'+cnt+'</div>';
+    html += diffHtml;
+    html += '<div style="margin-top:4px;height:3px;background:'+(active?m.color:'#e5e7eb')+';border-radius:2px;width:60%;"></div>';
+    html += '</div>';
+    html += '</div>';
+    if (!isLast) {
+      html += '<div style="flex-shrink:0;display:flex;align-items:center;padding:0 2px;color:#d1d5db;font-size:.8rem;margin-top:-8px;">&#8250;</div>';
+    }
+  });
+  html += '</div>';
+  return html;
+}
+
+// ══════════════════════════════════════════════════════
+// 오늘 현황 렌더링
+// ══════════════════════════════════════════════════════
+function renderToday(){
+  // view-date 선택 시 해당 날짜 history 데이터 사용, 아니면 오늘 deptData
+  const viewSel = document.getElementById('view-date');
+  const viewDate = viewSel ? viewSel.value : '';
+  let viewData = deptData; // 기본: 오늘 입력 데이터
+  let viewLabel = '';
+
+  if (viewDate) {
+    const histRow = history.find(r => r.date === viewDate);
+    if (histRow) {
+      // history 구조 → deptData 형태로 변환
+      viewData = {};
+      ALL_DEPTS.forEach(dept => {
+        const v = histRow[dept];
+        if (v && typeof v === 'object') {
+          viewData[dept] = {
+            unique: v.unique || 0,
+            t3: v.t3names || v.t3 || 0,
+            t2: v.t2names || v.t2 || 0,
+            t1: v.t1names || v.t1 || 0,
+            재적: v.재적 || 0,
+            results: v.results || {},
+            groups: v.groups || { 센터관리:[], 전도활동:[], 전도단:[] },
+            date: histRow.date
+          };
+        }
+      });
+      viewLabel = viewDate;
+    }
+  }
+
+  const depts=Object.keys(viewData);
+  document.getElementById('today-empty').style.display=depts.length?'none':'block';
+  document.getElementById('today-content').style.display=depts.length?'block':'none';
+  if(!depts.length)return;
+
+  let totalRejeok=0,totalUnique=0,totalT3=0,totalT2=0,totalT1=0;
+  const totalResults={};
+  RESULT_KEYS.forEach(k=>totalResults[k]=0);
+  depts.forEach(d=>{
+    const dd=viewData[d];
+    totalRejeok+=dd.재적||0; totalUnique+=dd.unique||0;
+    totalT3+=Array.isArray(dd.t3)?dd.t3.length:(dd.t3||0);
+    totalT2+=Array.isArray(dd.t2)?dd.t2.length:(dd.t2||0);
+    totalT1+=Array.isArray(dd.t1)?dd.t1.length:(dd.t1||0);
+    RESULT_KEYS.forEach(k=>totalResults[k]+=getRC(dd.results,k));
+  });
+  const actRate=pct(totalUnique,totalRejeok);
+
+  // 통계 카드
+  const statsGrid=document.getElementById('stats-grid');
+  const tiers=[
+    {name:'총력',n:totalT3,c:'#dc2626',bg:'#fef2f2'},
+    {name:'주력',n:totalT2,c:'#d97706',bg:'#fffbeb'},
+    {name:'활력',n:totalT1,c:'#059669',bg:'#ecfdf5'},
+  ];
+  const bars=tiers.map(t=>`
+    <div style="margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:.75rem;font-weight:700;color:${t.c}">${t.name}</span>
+        <span style="font-size:.75rem;font-family:'DM Mono',monospace;font-weight:700;color:${t.c}">${t.n}명 <span style="opacity:.7">(${pct(t.n,totalUnique)}%)</span></span>
+      </div>
+      <div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct(t.n,totalUnique)}%;background:${t.c};border-radius:3px"></div>
+      </div>
+    </div>`).join('');
+  statsGrid.innerHTML = `
+    <div class="stat-card" style="border-left:4px solid #64748b">
+      <div class="stat-label">전체 재적</div>
+      <div class="stat-num" style="color:#64748b">${totalRejeok}명</div>
+      <div class="stat-sub">4개 부서 합산</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid var(--accent)">
+      <div class="stat-label">실질 전도 인원</div>
+      <div class="stat-num" style="color:var(--accent)">${totalUnique}명</div>
+      <div class="stat-sub">재적 대비 <strong style="color:var(--accent)">${actRate}%</strong></div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #374151">
+      <div class="stat-label">활동 강도 분포</div>
+      ${bars}
+    </div>
+    <div class="stat-card" style="border-left:4px solid #d97706">
+      <div class="stat-label">입력 완료</div>
+      <div class="stat-num" style="color:#d97706">${depts.length}/4</div>
+      <div class="stat-sub">부서별 보고</div>
+    </div>`;
+
+  // 부서 카드
+  const deptGrid=document.getElementById('dept-grid');
+  deptGrid.innerHTML=ALL_DEPTS.map(dept=>{
+    const d=viewData[dept];
+    const color=`var(${DEPT_COLORS[dept]})`;
+    const bg=`var(${DEPT_BG[dept]})`;
+    if(!d||!d.unique)return`<div class="dept-card" style="opacity:.4;border-top:4px solid ${DEPT_RAW[dept]}">
+      <div class="dept-header"><div class="dept-name" style="color:${color}">${dept}</div>
+      <div class="dept-badge" style="background:${bg};color:${color}">미입력</div></div>
+      <div style="padding:2.5rem;text-align:center;color:var(--muted);font-size:.9rem">보고서를 입력해주세요</div></div>`;
+    const u=d.unique||0; const rate=pct(u,d.재적);
+    // groups가 있으면 calcTiers, 없으면 t3names/t2names/t1names 사용
+    const hasGroups = d.groups && (d.groups.센터관리||[]).length + (d.groups.전도활동||[]).length + (d.groups.전도단||[]).length > 0;
+    let t3,t2,t1;
+    if(hasGroups){
+      const tiers=calcTiers(d.groups);
+      t3=tiers.t3; t2=tiers.t2; t1=tiers.t1;
+    } else {
+      t3=Array.isArray(d.t3)?d.t3:(d.t3names||[]);
+      t2=Array.isArray(d.t2)?d.t2:(d.t2names||[]);
+      t1=Array.isArray(d.t1)?d.t1:(d.t1names||[]);
+    }
+    const t3p=pct(t3.length,u),t2p=pct(t2.length,u),t1p=pct(t1.length,u);
+    const GRP_LABELS={센터관리:'센',전도활동:'전',전도단:'단'};
+    const pg={};
+    const safeGroups=d.groups||{센터관리:[],전도활동:[],전도단:[]};
+    ['센터관리','전도활동','전도단'].forEach(g=>(safeGroups[g]||[]).forEach(n=>{if(!pg[n])pg[n]=[];pg[n].push(g);}));
+    const makeChips=(names,chipBg,chipTc)=>names.map(n=>{
+      const tags=(pg[n]||[]).map(g=>GRP_LABELS[g]).join('·');
+      return`<span class="i-chip" style="background:${chipBg};color:${chipTc}">${n}<span class="i-chip-grp">${tags}</span></span>`;
+    }).join('');
+    const groupsHTML=['센터관리','전도활동','전도단'].map(grp=>`
+      <div class="group-row"><div class="group-top">
+        <div class="group-name">${grp}</div>
+        <div class="group-count" style="color:${color}">${(safeGroups[grp]||[]).length}
+          <span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:4px">(재적대비 ${pct((safeGroups[grp]||[]).length,d.재적)}%)</span>
+        </div></div></div>`).join('');
+    const makeTier=(label,names,blk,cb,ct,tc,np,npr)=>!(Array.isArray(names)&&names.length)?'':
+      `<div class="intensity-block" style="background:${blk}">
+        <div class="intensity-header">
+          <span class="intensity-badge" style="background:${tc};color:#fff">${label}</span>
+          <span class="intensity-cnt" style="color:${tc}">
+            <span style="font-size:1rem;font-weight:900">${names.length}명</span>
+            <span style="font-size:.7rem;opacity:.75">실질 ${np}% · 재적 ${npr}%</span>
+          </span>
+        </div>
+        <div class="intensity-names">${makeChips(names,cb,ct)}</div>
+      </div>`;
+    return`<div class="dept-card" style="border-top:4px solid ${DEPT_RAW[dept]}">
+      <div class="dept-header">
+        <div class="dept-name" style="color:${color}">${dept}</div>
+        <div class="dept-badge" style="background:${bg};color:${color}">재적 ${d.재적}명 · ${d.date||''}</div>
+      </div>
+      <div class="dept-body">
+        ${groupsHTML}
+        <div class="unique-row" style="background:${bg}">
+          <div>
+            <div class="unique-label" style="color:${color}">실질 전도 인원</div>
+            <div class="unique-sub" style="color:${color}">재적 대비 <strong>${rate}%</strong> · 총력 ${t3p}% 주력 ${t2p}% 활력 ${t1p}%</div>
+          </div>
+          <div class="unique-num" style="color:${color}">${u}명</div>
+        </div>
+        <div class="intensity-section">
+          ${makeTier('총력 활동자',t3,'var(--총력-bg)','rgba(220,38,38,.12)','var(--총력)','var(--총력)',t3p,pct(t3.length,d.재적))}
+          ${makeTier('주력 활동자',t2,'var(--주력-bg)','rgba(217,119,6,.12)','var(--주력)','var(--주력)',t2p,pct(t2.length,d.재적))}
+          ${makeTier('활력 활동자',t1,'var(--활력-bg)','rgba(5,150,105,.1)','var(--활력)','var(--활력)',t1p,pct(t1.length,d.재적))}
+        </div>
+
+        <!-- 전도결과 -->
+        <div style="margin-top:1.2rem;border-top:1px solid var(--border);padding-top:1rem;">
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.8rem;">전도결과</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;" id="results-${dept}">
+            ${makeResultGrid(d.results, null)}
+          </div>
+        </div>
+      </div></div>`;
+  // ── 전체 합산 카드 ──
+  const allT3names=[...new Set(ALL_DEPTS.flatMap(d=>deptData[d]?Array.isArray(deptData[d].t3)?deptData[d].t3:(deptData[d].t3names||[]):[] ))];
+  const allT2names=[...new Set(ALL_DEPTS.flatMap(d=>deptData[d]?Array.isArray(deptData[d].t2)?deptData[d].t2:(deptData[d].t2names||[]):[] ))];
+  const allT1names=[...new Set(ALL_DEPTS.flatMap(d=>deptData[d]?Array.isArray(deptData[d].t1)?deptData[d].t1:(deptData[d].t1names||[]):[] ))];
+  const totalT3p=pct(totalT3,totalUnique), totalT2p=pct(totalT2,totalUnique), totalT1p=pct(totalT1,totalUnique);
+  const GRP_LABELS_ALL={센터관리:'센',전도활동:'전',전도단:'단'};
+  const allGroups={
+    센터관리:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.센터관리||[]))],
+    전도활동:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.전도활동||[]))],
+    전도단:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.전도단||[]))],
+  };
+  const makeChipsAll=(names,chipBg,chipTc)=>names.map(n=>`<span class="i-chip" style="background:${chipBg};color:${chipTc}">${n}</span>`).join('');
+  const makeGroupRowAll=grp=>`<div class="group-row"><div class="group-top">
+    <div class="group-name">${grp}</div>
+    <div class="group-count" style="color:#2563eb">${allGroups[grp].length}
+      <span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:4px">(재적대비 ${pct(allGroups[grp].length,totalRejeok)}%)</span>
+    </div></div></div>`;
+  const makeTierAll=(label,names,blk,cb,ct,tc,np,npr)=>!names.length?'':
+    `<div class="intensity-block" style="background:${blk}">
+      <div class="intensity-header">
+        <span class="intensity-badge" style="background:${tc};color:#fff">${label}</span>
+        <span class="intensity-cnt" style="color:${tc}">
+          <span style="font-size:1rem;font-weight:900">${names.length}명</span>
+          <span style="font-size:.7rem;opacity:.75">실질 ${np}% · 재적 ${npr}%</span>
+        </span>
+      </div>
+      <div class="intensity-names">${makeChipsAll(names,cb,ct)}</div>
+    </div>`;
+
+  deptGrid.innerHTML += `<div class="dept-card" style="border-top:4px solid #2563eb;grid-column:1/-1;">
+    <div class="dept-header">
+      <div class="dept-name" style="color:#2563eb">⛪ 교회 전체</div>
+      <div class="dept-badge" style="background:#eff4ff;color:#2563eb">재적 ${totalRejeok}명 합산</div>
+    </div>
+    <div class="dept-body">
+      ${['센터관리','전도활동','전도단'].map(makeGroupRowAll).join('')}
+      <div class="unique-row" style="background:#eff4ff">
+        <div style="width:100%">
+          <div class="unique-label" style="color:#2563eb">실질 전도 인원</div>
+          <div style="display:flex;align-items:baseline;gap:.5rem;margin-top:.3rem;flex-wrap:wrap">
+            <div class="unique-num" style="color:#2563eb;line-height:1">${totalUnique}명</div>
+            <div style="font-size:1rem;font-weight:700;color:#2563eb;opacity:.8">(재적대비 ${actRate}%)</div>
+          </div>
+          <div style="display:flex;gap:.6rem;margin-top:.6rem;flex-wrap:wrap">
+            <span style="font-size:.78rem;font-weight:700;color:#dc2626;background:#fef2f2;padding:2px 8px;border-radius:6px">총력 ${totalT3p}%</span>
+            <span style="font-size:.78rem;font-weight:700;color:#d97706;background:#fffbeb;padding:2px 8px;border-radius:6px">주력 ${totalT2p}%</span>
+            <span style="font-size:.78rem;font-weight:700;color:#059669;background:#ecfdf5;padding:2px 8px;border-radius:6px">활력 ${totalT1p}%</span>
+          </div>
+        </div>
+      </div>
+      <div class="intensity-section">
+        ${makeTierAll('총력 활동자',allT3names,'var(--총력-bg)','rgba(220,38,38,.12)','var(--총력)','var(--총력)',totalT3p,pct(totalT3,totalRejeok))}
+        ${makeTierAll('주력 활동자',allT2names,'var(--주력-bg)','rgba(217,119,6,.12)','var(--주력)','var(--주력)',totalT2p,pct(totalT2,totalRejeok))}
+        ${makeTierAll('활력 활동자',allT1names,'var(--활력-bg)','rgba(5,150,105,.1)','var(--활력)','var(--활력)',totalT1p,pct(totalT1,totalRejeok))}
+      </div>
+      <div style="margin-top:1.2rem;border-top:1px solid var(--border);padding-top:1rem;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.8rem">전도결과</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem">
+          ${makeResultGrid(totalResults, null)}
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  }).join('');
+
+  // ── 교회 전체 합산 카드 ──
+  const allT3names=[...new Set(ALL_DEPTS.flatMap(d=>{const dd=viewData[d];if(!dd)return[];return Array.isArray(dd.t3)?dd.t3:(dd.t3names||[]);}))];
+  const allT2names=[...new Set(ALL_DEPTS.flatMap(d=>{const dd=viewData[d];if(!dd)return[];return Array.isArray(dd.t2)?dd.t2:(dd.t2names||[]);}))];
+  const allT1names=[...new Set(ALL_DEPTS.flatMap(d=>{const dd=viewData[d];if(!dd)return[];return Array.isArray(dd.t1)?dd.t1:(dd.t1names||[]);}))];
+  const totalT3p=pct(totalT3,totalUnique), totalT2p=pct(totalT2,totalUnique), totalT1p=pct(totalT1,totalUnique);
+  const allGroups={
+    센터관리:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.센터관리||[]))],
+    전도활동:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.전도활동||[]))],
+    전도단:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.전도단||[]))],
+  };
+  const makeChipsAll=(names,bg,tc)=>names.map(n=>`<span class="i-chip" style="background:${bg};color:${tc}">${n}</span>`).join('');
+  const makeTierAll=(label,names,blk,cb,ct,tc,np,npr)=>!names.length?'':
+    `<div class="intensity-block" style="background:${blk}">
+      <div class="intensity-header">
+        <span class="intensity-badge" style="background:${tc};color:#fff">${label}</span>
+        <span class="intensity-cnt" style="color:${tc}">
+          <span style="font-size:1rem;font-weight:900">${names.length}명</span>
+          <span style="font-size:.7rem;opacity:.75">실질 ${np}% · 재적 ${npr}%</span>
+        </span>
+      </div>
+      <div class="intensity-names">${makeChipsAll(names,cb,ct)}</div>
+    </div>`;
+
+  if(depts.length) deptGrid.innerHTML += `<div class="dept-card" style="border-top:4px solid #2563eb;">
+    <div class="dept-header">
+      <div class="dept-name" style="color:#2563eb">⛪ 교회 전체</div>
+      <div class="dept-badge" style="background:#eff4ff;color:#2563eb">재적 ${totalRejeok}명 합산</div>
+    </div>
+    <div class="dept-body">
+      ${['센터관리','전도활동','전도단'].map(grp=>`
+        <div class="group-row"><div class="group-top">
+          <div class="group-name">${grp}</div>
+          <div class="group-count" style="color:#2563eb">${allGroups[grp].length}
+            <span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:4px">(재적대비 ${pct(allGroups[grp].length,totalRejeok)}%)</span>
+          </div>
+        </div></div>`).join('')}
+      <div class="unique-row" style="background:#eff4ff">
+        <div style="width:100%">
+          <div class="unique-label" style="color:#2563eb">실질 전도 인원</div>
+          <div style="display:flex;align-items:baseline;gap:.5rem;margin-top:.3rem;flex-wrap:wrap">
+            <div class="unique-num" style="color:#2563eb;line-height:1">${totalUnique}명</div>
+            <div style="font-size:1rem;font-weight:700;color:#2563eb;opacity:.8">(재적대비 ${actRate}%)</div>
+          </div>
+          <div style="display:flex;gap:.6rem;margin-top:.6rem;flex-wrap:wrap">
+            <span style="font-size:.78rem;font-weight:700;color:#dc2626;background:#fef2f2;padding:2px 8px;border-radius:6px">총력 ${totalT3p}%</span>
+            <span style="font-size:.78rem;font-weight:700;color:#d97706;background:#fffbeb;padding:2px 8px;border-radius:6px">주력 ${totalT2p}%</span>
+            <span style="font-size:.78rem;font-weight:700;color:#059669;background:#ecfdf5;padding:2px 8px;border-radius:6px">활력 ${totalT1p}%</span>
+          </div>
+        </div>
+      </div>
+      <div class="intensity-section">
+        ${makeTierAll('총력 활동자',allT3names,'var(--총력-bg)','rgba(220,38,38,.12)','var(--총력)','var(--총력)',totalT3p,pct(totalT3,totalRejeok))}
+        ${makeTierAll('주력 활동자',allT2names,'var(--주력-bg)','rgba(217,119,6,.12)','var(--주력)','var(--주력)',totalT2p,pct(totalT2,totalRejeok))}
+        ${makeTierAll('활력 활동자',allT1names,'var(--활력-bg)','rgba(5,150,105,.1)','var(--활력)','var(--활력)',totalT1p,pct(totalT1,totalRejeok))}
+      </div>
+      <div style="margin-top:1.2rem;border-top:1px solid var(--border);padding-top:1rem;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.8rem">전도결과</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem">
+          ${makeResultGrid(totalResults, null)}
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // 전도 프로세스 종합 뷰
+  renderProcessView(totalResults);
+  // 전도 활동 종합 뷰
+  currentViewData = viewData;
+  renderActivityOverview();
+
+  // 조회 날짜 배너
+  const bannerEl = document.getElementById('view-date-banner');
+  if (bannerEl) {
+    bannerEl.style.display = viewLabel ? 'flex' : 'none';
+    bannerEl.textContent = viewLabel ? '📅 ' + viewLabel + ' 기준 데이터' : '';
+  }
+}
+
+
+function renderActivityOverview() {
+  const el = document.getElementById('activity-overview');
+  if (!el) return;
+
+  // 비교 기준일: compare-date 셀렉트에서 선택한 날짜
+  const compareSel = document.getElementById('compare-date');
+  const compareDate = compareSel ? compareSel.value : '';
+  const prevRow = compareDate
+    ? (history.find(r => r.date === compareDate) || null)
+    : null;
+
+  // 색상 규칙:
+  // - 셀 배경 = 부서 고유색 (연하게)
+  // - 숫자 색  = 지표 고유색 (실질:파랑 총력:빨강 주력:황금 활력:초록)
+  const COL_COLOR = ['#2563eb','#dc2626','#d97706','#059669','#7c3aed'];
+  const COL_LABEL = ['실질인원','총력','주력','활력','활동력지수'];
+
+  function diffBadge(cur, prev) {
+    if (prev === null) return '';
+    const d = cur - prev;
+    if (d > 0) return '<div style="color:#059669;font-size:.6rem;font-weight:700;margin-top:1px">▲'+d+'</div>';
+    if (d < 0) return '<div style="color:#dc2626;font-size:.6rem;font-weight:700;margin-top:1px">▼'+Math.abs(d)+'</div>';
+    return '<div style="color:#9ca3af;font-size:.6rem;margin-top:1px">→</div>';
+  }
+
+  function activityIndex(t3, t2, t1) {
+    const total = t3 + t2 + t1;
+    if (!total) return 0;
+    return Math.round((t3*3 + t2*2 + t1*1) / total * 10) / 10;
+  }
+  function indexGrade(idx) {
+    if (idx >= 2.5) return { label:'고강도', color:'#dc2626', bg:'#fef2f2' };
+    if (idx >= 1.8) return { label:'중강도', color:'#d97706', bg:'#fffbeb' };
+    if (idx >= 1.0) return { label:'저강도', color:'#059669', bg:'#ecfdf5' };
+    return { label:'-', color:'#9ca3af', bg:'#f9fafb' };
+  }
+
+  function makeRow(label, labelColor, labelSub, vals, prevVals, bgHex, isBold, rejeok) {
+    // vals: [unique, t3, t2, t1]
+    const u=vals[0], t3=vals[1], t2=vals[2], t1=vals[3];
+    const idx = activityIndex(t3, t2, t1);
+    const grade = indexGrade(idx);
+    const pidx = prevVals ? activityIndex(prevVals[1]||0, prevVals[2]||0, prevVals[3]||0) : null;
+    const idxDiff = pidx !== null ? Math.round((idx - pidx)*10)/10 : null;
+
+    const cells = vals.map(function(v, i) {
+      const pv = prevVals ? prevVals[i] : null;
+      const numColor = COL_COLOR[i];
+      const rateVal = i === 0 ? pct(v, rejeok||0) : pct(v, vals[0]);
+      const rateLabel = i === 0 ? '재적 '+rateVal+'%' : '실질 '+rateVal+'%';
+
+      const diff = (pv !== null && pv !== undefined) ? v - pv : null;
+      const diffColor = diff === null ? null : diff > 0 ? '#059669' : diff < 0 ? '#dc2626' : '#9ca3af';
+      const diffIcon  = diff === null ? '' : diff > 0 ? '▲' : diff < 0 ? '▼' : '→';
+      const diffAbs   = diff === null ? '' : Math.abs(diff);
+      const diffBlock = diff === null ? ''
+        : '<div style="display:inline-flex;align-items:center;gap:3px;background:'+diffColor+'18;border-radius:8px;padding:2px 8px;margin-top:5px">'
+          + '<span style="color:'+diffColor+';font-size:.85rem;font-weight:800">'+diffIcon+(diff!==0?diffAbs:'')+'</span>'
+          + '</div>';
+
+      return '<td style="padding:.7rem .5rem;text-align:center">'
+        + '<div style="background:'+bgHex+'18;border-radius:12px;padding:.8rem .4rem;border-left:3px solid '+numColor+(isBold?'99':'44')+'">'
+        + '<div style="font-size:'+(isBold?'2':'1.7')+'rem;font-weight:900;font-family:DM Mono,monospace;color:'+numColor+';line-height:1">'+v+'</div>'
+        + '<div style="font-size:'+(isBold?'1rem':'.9rem')+';font-weight:800;color:'+numColor+';margin-top:5px;opacity:.85">'+rateLabel+'</div>'
+        + diffBlock
+        + '</div></td>';
+    }).join('');
+
+    // 스택 바
+    const total = t3+t2+t1 || 1;
+    const t3w = Math.round(t3/total*100), t2w = Math.round(t2/total*100), t1w = 100-t3w-t2w;
+    const stackBar = u > 0
+      ? '<div style="height:8px;border-radius:4px;overflow:hidden;display:flex;gap:1px;margin-top:6px">'
+        + '<div style="flex:'+t3w+';background:#dc2626;min-width:'+(t3?2:0)+'px"></div>'
+        + '<div style="flex:'+t2w+';background:#d97706;min-width:'+(t2?2:0)+'px"></div>'
+        + '<div style="flex:'+t1w+';background:#059669;min-width:'+(t1?2:0)+'px"></div>'
+        + '</div>'
+      : '';
+
+    // 활동력 지수 셀
+    const idxDiffHtml = idxDiff === null ? ''
+      : '<div style="display:inline-flex;align-items:center;gap:3px;background:'+(idxDiff>0?'#05996918':idxDiff<0?'#dc262618':'#9ca3af18')+';border-radius:8px;padding:2px 8px;margin-top:5px">'
+        + '<span style="color:'+(idxDiff>0?'#059669':idxDiff<0?'#dc2626':'#9ca3af')+';font-size:.85rem;font-weight:800">'
+        + (idxDiff>0?'▲':idxDiff<0?'▼':'→')+(idxDiff!==0?Math.abs(idxDiff):'')+'</span></div>';
+
+    const idxCell = '<td style="padding:.7rem .5rem;text-align:center">'
+      + '<div style="background:'+grade.bg+';border-radius:12px;padding:.8rem .4rem;border-left:3px solid '+grade.color+(isBold?'99':'66')+'">'
+      + '<div style="font-size:'+(isBold?'2':'1.7')+'rem;font-weight:900;font-family:DM Mono,monospace;color:'+grade.color+';line-height:1">'+(idx||'-')+'</div>'
+      + '<div style="font-size:'+(isBold?'1rem':'.9rem')+';font-weight:800;color:'+grade.color+';margin-top:5px;opacity:.85">'+grade.label+' / 3.0</div>'
+      + idxDiffHtml
+      + stackBar
+      + '</div></td>';
+    return '<tr style="border-bottom:1px solid var(--border)'+(isBold?';background:#f0f4ff;border-top:2px solid #bfdbfe':'')+'">'
+      + '<td style="padding:.9rem 1.1rem;white-space:nowrap;vertical-align:middle">'
+      + '<div style="font-weight:'+(isBold?'900':'800')+';font-size:'+(isBold?'1.15rem':'1.05rem')+';color:'+labelColor+'">'+label+'</div>'
+      + '<div style="font-size:.82rem;color:var(--muted);margin-top:3px;font-weight:500">'+labelSub+'</div>'
+      + '</td>'
+      + cells + idxCell + '</tr>';
+  }
+
+  // 부서별 행
+  const deptRows = ALL_DEPTS.map(function(dept) {
+    const d = currentViewData[dept];
+    const pv = prevRow ? prevRow[dept] : null;
+    const u  = d ? (d.unique||0) : 0;
+    const t3 = d ? (Array.isArray(d.t3)?d.t3.length:(d.t3||0)) : 0;
+    const t2 = d ? (Array.isArray(d.t2)?d.t2.length:(d.t2||0)) : 0;
+    const t1 = d ? (Array.isArray(d.t1)?d.t1.length:(d.t1||0)) : 0;
+    const pu  = pv&&typeof pv==='object'?pv.unique:null;
+    const pt3 = pv&&typeof pv==='object'?pv.t3:null;
+    const pt2 = pv&&typeof pv==='object'?pv.t2:null;
+    const pt1 = pv&&typeof pv==='object'?pv.t1:null;
+    const color = DEPT_RAW[dept];
+    // hex to rgb용 — 이미 hex로 있으니 그냥 사용
+    return d
+      ? makeRow(dept, color, '재적 '+d.재적+'명', [u,t3,t2,t1], [pu,pt3,pt2,pt1], color, false, d.재적)
+      : '<tr style="border-bottom:1px solid var(--border)">'
+        +'<td style="padding:.7rem 1rem;font-weight:800;font-size:.92rem;color:'+color+'">'+dept
+        +'<div style="font-size:.68rem;color:var(--muted)">미입력</div></td>'
+        +'<td colspan="4" style="text-align:center;color:var(--muted);font-size:.82rem;padding:.7rem">-</td></tr>';
+  }).join('');
+
+  // 전체 합계 행
+  const totU  = ALL_DEPTS.reduce((s,d)=>s+(currentViewData[d]?.unique||0),0);
+  const totRej= ALL_DEPTS.reduce((s,d)=>s+(currentViewData[d]?.재적||0),0);
+  const totT3 = ALL_DEPTS.reduce((s,d)=>{const dd=currentViewData[d];return s+(dd?Array.isArray(dd.t3)?dd.t3.length:(dd.t3||0):0);},0);
+  const totT2 = ALL_DEPTS.reduce((s,d)=>{const dd=currentViewData[d];return s+(dd?Array.isArray(dd.t2)?dd.t2.length:(dd.t2||0):0);},0);
+  const totT1 = ALL_DEPTS.reduce((s,d)=>{const dd=currentViewData[d];return s+(dd?Array.isArray(dd.t1)?dd.t1.length:(dd.t1||0):0);},0);
+  const ptotU = prevRow?ALL_DEPTS.reduce((s,d)=>s+(prevRow[d]?.unique||0),0):null;
+  const ptotT3= prevRow?ALL_DEPTS.reduce((s,d)=>s+(prevRow[d]?.t3||0),0):null;
+  const ptotT2= prevRow?ALL_DEPTS.reduce((s,d)=>s+(prevRow[d]?.t2||0),0):null;
+  const ptotT1= prevRow?ALL_DEPTS.reduce((s,d)=>s+(prevRow[d]?.t1||0),0):null;
+  const totalRow = makeRow('⛪ 교회 전체','#2563eb','재적 '+totRej+'명',
+    [totU,totT3,totT2,totT1],[ptotU,ptotT3,ptotT2,ptotT1],'#2563eb',true,totRej);
+
+  el.innerHTML = '<div class="result-section" style="margin-bottom:1.5rem">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem">'
+    + '<div class="section-title" style="margin-bottom:0">전도 활동 종합</div>'
+    + (prevRow ? '<span style="font-size:.75rem;color:var(--accent);background:var(--accent-light);border:1px solid #bfdbfe;padding:3px 10px;border-radius:999px;font-weight:600">'+prevRow.date+' 대비 증감</span>' : '<span style="font-size:.75rem;color:var(--muted)">위에서 비교 기준일을 선택하세요</span>')
+    + '</div>'
+    + '<div style="overflow-x:auto">'
+    + '<table style="width:100%;border-collapse:collapse;min-width:480px">'
+    + '<thead><tr style="border-bottom:2px solid var(--border)">'
+    + '<th style="padding:.8rem 1rem;text-align:left;font-size:.85rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;min-width:100px">부서</th>'
+    + COL_COLOR.map(function(c,i){return '<th style="padding:.8rem .5rem;text-align:center;font-size:.88rem;font-weight:800;color:'+c+';min-width:100px">'+COL_LABEL[i]+'</th>';}).join('')
+    + '</tr></thead>'
+    + '<tbody>'+deptRows+totalRow+'</tbody>'
+    + '</table></div></div>';
+}
+
+function renderProcessView(totalResults) {
+  const el = document.getElementById('process-view');
+  if (!el) return;
+
+  // 비교 기준일: compare-date 셀렉트에서 선택한 날짜
+  const compareSel = document.getElementById('compare-date');
+  const compareDate = compareSel ? compareSel.value : '';
+  const prevRow = compareDate
+    ? (history.find(r => r.date === compareDate) || null)
+    : null;
+  const prevLabel = prevRow ? prevRow.date : null;
+
+  const STEP_LABELS = ['1. 찾기','2. 연결','3. 육따','4. 영따','5. 복방','6. 센터'];
+  const STEP_COLORS = ['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'];
+  const STEP_BG     = ['#eff4ff','#f5f3ff','#fffbeb','#f0f9ff','#ecfdf5','#fdf2f8'];
+
+  function stepCell(val, prev, color, bg, label) {
+    var diff = prev !== null ? val - prev : null;
+    var diffHtml = diff === null ? ''
+      : diff > 0 ? '<div style="font-size:.62rem;color:#059669;font-weight:700">▲'+diff+'</div>'
+      : diff < 0 ? '<div style="font-size:.62rem;color:#dc2626;font-weight:700">▼'+Math.abs(diff)+'</div>'
+      : '<div style="font-size:.62rem;color:#9ca3af">→</div>';
+    var active = val > 0;
+    return '<td style="padding:.5rem .3rem;text-align:center;min-width:70px">'
+      + '<div style="background:'+(active?bg:'#f9fafb')+';border:1.5px solid '+(active?color+'55':'#e5e7eb')+';border-radius:10px;padding:.5rem .3rem;display:inline-block;width:100%;box-sizing:border-box">'
+      + '<div style="font-size:.6rem;color:'+(active?color:'#b0b7c3')+';font-weight:700;margin-bottom:2px">'+label+'</div>'
+      + '<div style="font-size:1.4rem;font-weight:900;font-family:DM Mono,monospace;color:'+(active?color:'#c0c4ce')+';line-height:1.1">'+val+'</div>'
+      + diffHtml
+      + '</div></td>';
+  }
+
+  function arrowCell() {
+    return '<td style="padding:0 2px;text-align:center;color:#d1d5db;font-size:1rem;vertical-align:middle">›</td>';
+  }
+
+  // 부서별 행
+  var deptRows = ALL_DEPTS.map(function(dept) {
+    var d = currentViewData[dept];
+    var color = DEPT_RAW[dept];
+    var prevDeptRow = prevRow ? prevRow[dept] : null;
+    var cells = RESULT_KEYS.map(function(k, i) {
+      var val = d ? getRC(d.results, k) : 0;
+      var prevVal = prevDeptRow && typeof prevDeptRow === 'object' ? getRC(prevDeptRow.results, k) : null;
+      return stepCell(val, prevVal, STEP_COLORS[i], STEP_BG[i], STEP_LABELS[i]) + (i < RESULT_KEYS.length-1 ? arrowCell() : '');
+    }).join('');
+    return '<tr>'
+      + '<td style="padding:.6rem 1rem;font-weight:800;font-size:.95rem;color:'+color+';white-space:nowrap;vertical-align:middle">'+dept+'</td>'
+      + cells
+      + '</tr>'
+      + '<tr><td colspan="13" style="height:6px;"></td></tr>';
+  }).join('');
+
+  // 전체 합계 행
+  var prevTotalRes = prevRow ? RESULT_KEYS.reduce(function(o,k){
+    o[k] = ALL_DEPTS.reduce(function(s,d){ return s + getRC(prevRow[d]?.results, k); }, 0);
+    return o;
+  }, {}) : null;
+
+  // 병목 분석: 직전 단계 대비 가장 많이 떨어진 구간
+  var vals = RESULT_KEYS.map(function(k){ return totalResults[k]||0; });
+  var bottleneck = -1, maxDrop = 0;
+  for (var i=1; i<vals.length; i++) {
+    if (vals[i-1] > 0) {
+      var drop = vals[i-1] - vals[i];
+      if (drop > maxDrop) { maxDrop = drop; bottleneck = i; }
+    }
+  }
+
+  var totalCells = RESULT_KEYS.map(function(k, i) {
+    var val = totalResults[k] || 0;
+    var prevVal = prevTotalRes ? prevTotalRes[k] : null;
+    var isBottleneck = i === bottleneck && maxDrop > 0;
+    var diff = prevVal !== null ? val - prevVal : null;
+    var diffHtml = diff === null ? ''
+      : diff > 0 ? '<div style="font-size:.65rem;color:#059669;font-weight:700">▲'+diff+'</div>'
+      : diff < 0 ? '<div style="font-size:.65rem;color:#dc2626;font-weight:700">▼'+Math.abs(diff)+'</div>'
+      : '<div style="font-size:.65rem;color:#9ca3af">→</div>';
+    var active = val > 0;
+    var color = STEP_COLORS[i], bg = STEP_BG[i];
+    return '<td style="padding:.5rem .3rem;text-align:center;min-width:70px">'
+      + '<div style="background:'+(active?bg:'#f9fafb')+';border:2px solid '+(isBottleneck?'#dc2626':active?color+'55':'#e5e7eb')+';border-radius:10px;padding:.6rem .3rem;display:inline-block;width:100%;box-sizing:border-box;position:relative">'
+      + (isBottleneck ? '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;font-size:.55rem;font-weight:800;padding:1px 6px;border-radius:999px;white-space:nowrap">단절</div>' : '')
+      + '<div style="font-size:.62rem;color:'+(active?color:'#b0b7c3')+';font-weight:700;margin-bottom:2px">'+STEP_LABELS[i]+'</div>'
+      + '<div style="font-size:1.6rem;font-weight:900;font-family:DM Mono,monospace;color:'+(active?color:'#c0c4ce')+';line-height:1.1">'+val+'</div>'
+      + diffHtml + '</div></td>'
+      + (i < RESULT_KEYS.length-1 ? '<td style="padding:0 2px;text-align:center;vertical-align:middle"><div style="color:'+(isBottleneck?'#dc2626':'#d1d5db')+';font-size:1.2rem;font-weight:900">→</div></td>' : '');
+  }).join('');
+
+  el.innerHTML = '<div style="overflow-x:auto">'
+    + '<table style="width:100%;border-collapse:collapse;min-width:600px">'
+    + '<thead><tr>'
+    + '<th style="padding:.5rem 1rem;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-bottom:2px solid var(--border)">부서</th>'
+    + RESULT_KEYS.map(function(k,i){ return '<th colspan="2" style="padding:.5rem .3rem;text-align:center;font-size:.7rem;font-weight:700;color:'+STEP_COLORS[i]+';border-bottom:2px solid var(--border)">'+STEP_LABELS[i]+'</th>'; }).join('').replace(/<th colspan="2"([^>]*)>([^<]*)<\/th>$/, '<th$1>$2</th>')
+    + '</tr></thead>'
+    + '<tbody>' + deptRows + '</tbody>'
+    + '</table>'
+    + '<div style="margin-top:1.2rem;background:#fff5f5;border:2px solid #fca5a5;border-radius:14px;padding:1.2rem">'
+    + '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem">'
+    + '<span style="background:#dc2626;color:#fff;font-size:.72rem;font-weight:800;padding:3px 10px;border-radius:999px">TOTAL</span>'
+    + '<span style="font-size:.85rem;font-weight:700;color:#dc2626">전체 합계 · 프로세스 병목 분석</span>'
+    + (prevRow ? '<span style="font-size:.72rem;color:var(--muted);margin-left:auto">'+prevRow.date+' 대비 증감</span>' : '')
+    + '</div>'
+    + '<div style="display:flex;align-items:center;font-size:1rem;font-weight:800;color:#dc2626;margin-bottom:.8rem">전체 합계</div>'
+    + '<table style="width:100%;border-collapse:collapse"><tbody><tr>' + totalCells + '</tr></tbody></table>'
+    + '</div>'
+    + '</div>';
+}
+
+// ══════════════════════════════════════════════════════
+// 날짜 유틸
+// ══════════════════════════════════════════════════════
+function weekStart(dateStr){
+  const d=new Date(dateStr); d.setDate(d.getDate()-d.getDay()); return fmtDate(d);
+}
+function weekEnd(dateStr){
+  const d=new Date(dateStr); d.setDate(d.getDate()+(6-d.getDay())); return fmtDate(d);
+}
+function periodKey(dateStr,period){
+  if(period==='weekly') return weekStart(dateStr);
+  if(period==='monthly') return dateStr.slice(0,7);
+  if(period==='quarterly'){const[y,m]=dateStr.split('-').map(Number);return`${y}-Q${Math.ceil(m/3)}`;}
+  return dateStr.slice(0,4);
+}
+function periodLabel(key,period){
+  if(period==='weekly'){const e=weekEnd(key+'T00:00:00');return`${key.slice(5)} ~ ${e.slice(5)}`;}
+  if(period==='monthly'){const[y,m]=key.split('-');return`${y}년 ${m}월`;}
+  if(period==='quarterly')return key.replace('-','년 ');
+  return key+'년';
+}
+
+// 기간 집계 (숫자 평균 + 명단 합집합)
+function aggregatePeriod(rows){
+  const result={};
+  ALL_DEPTS.forEach(dept=>{
+    const entries=rows.filter(r=>r[dept]&&typeof r[dept]==='object');
+    if(!entries.length){result[dept]=null;return;}
+    const days=entries.length;
+    const avg=f=>entries.reduce((s,r)=>s+(r[dept]?.[f]||0),0)/days;
+    // 명단: 해당 기간에 한 번이라도 나온 사람 합집합
+    const allT3=new Set(entries.flatMap(r=>r[dept]?.t3names||[]));
+    const allT2=new Set(entries.flatMap(r=>r[dept]?.t2names||[]));
+    const allT1=new Set(entries.flatMap(r=>r[dept]?.t1names||[]));
+    const allCentre=new Set(entries.flatMap(r=>r[dept]?.groups?.센터관리||[]));
+    const allEv=new Set(entries.flatMap(r=>r[dept]?.groups?.전도활동||[]));
+    const allTeam=new Set(entries.flatMap(r=>r[dept]?.groups?.전도단||[]));
+    result[dept]={
+      unique:avg('unique'), t3:avg('t3'), t2:avg('t2'), t1:avg('t1'),
+      t3names:[...allT3], t2names:[...allT2], t1names:[...allT1],
+      groups:{센터관리:[...allCentre],전도활동:[...allEv],전도단:[...allTeam]},
+      재적:entries[0][dept]?.재적||0, days
+    };
+  });
+  return result;
+}
+
+// ══════════════════════════════════════════════════════
+// 추이 렌더링
+// ══════════════════════════════════════════════════════
+function switchPeriod(p,btn){
+  currentPeriod=p;
+  document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderTrend(p);
+}
+
+function renderTrend(period){
+  const el=document.getElementById('trend-content');
+  if(!el)return;
+  if(!history.length){el.innerHTML=`<div style="text-align:center;padding:4rem;color:var(--muted);font-size:.9rem">아직 누적 데이터가 없어요.<br>보고서를 입력하면 추이가 나타납니다.</div>`;return;}
+
+  // 그룹핑
+  const grouped={};
+  history.forEach(r=>{
+    const k=periodKey(r.date,period);
+    if(!grouped[k])grouped[k]=[];
+    grouped[k].push(r);
+  });
+  const sortedKeys=Object.keys(grouped).sort().reverse().slice(0,period==='yearly'?5:period==='quarterly'?8:12);
+
+  // SVG 꺾은선 (시간순 = asc)
+  const chartKeys=Object.keys(grouped).sort().slice(-(period==='yearly'?5:period==='quarterly'?8:12));
+  const chartPts=chartKeys.map(k=>{
+    const agg=aggregatePeriod(grouped[k]);
+    return ALL_DEPTS.reduce((s,d)=>s+(agg[d]?.unique||0),0);
+  });
+  const maxPt=Math.max(...chartPts,1);
+  const W=600,H=130,pad=36;
+  const xs=chartPts.length>1?chartPts.map((_,i)=>pad+i*(W-2*pad)/(chartPts.length-1)):[W/2];
+  const ys=chartPts.map(v=>H-pad-(v/maxPt)*(H-2*pad));
+  const linePath=xs.map((x,i)=>`${i===0?'M':'L'}${x},${ys[i]}`).join(' ');
+  const areaPath=`M${xs[0]},${H-pad} ${xs.map((x,i)=>`L${x},${ys[i]}`).join(' ')} L${xs[xs.length-1]},${H-pad} Z`;
+
+  let html=`
+  <div class="chart-wrap">
+    <svg viewBox="0 0 ${W} ${H}" style="min-width:500px;width:100%;overflow:visible">
+      <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2563eb" stop-opacity=".18"/>
+        <stop offset="100%" stop-color="#2563eb" stop-opacity="0"/>
+      </linearGradient></defs>
+      <path d="${areaPath}" fill="url(#ag)"/>
+      ${chartPts.length>1?`<path d="${linePath}" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`:''}
+      ${xs.map((x,i)=>`
+        <circle cx="${x}" cy="${ys[i]}" r="5" fill="#2563eb" stroke="#fff" stroke-width="2"/>
+        <text x="${x}" y="${ys[i]-10}" text-anchor="middle" font-size="11" fill="#1a1d2e" font-weight="700">${Math.round(chartPts[i])}</text>
+        <text x="${x}" y="${H-6}" text-anchor="middle" font-size="9" fill="#9ca3af">${periodLabel(chartKeys[i],period).split(' ')[0]}</text>
+      `).join('')}
+    </svg>
+  </div>`;
+
+  // 기간별 카드
+  sortedKeys.forEach((k,ki)=>{
+    const rows=grouped[k];
+    const agg=aggregatePeriod(rows);
+    const totU=ALL_DEPTS.reduce((s,d)=>s+(agg[d]?.unique||0),0);
+    const totT3=ALL_DEPTS.reduce((s,d)=>s+(agg[d]?.t3||0),0);
+    const totT2=ALL_DEPTS.reduce((s,d)=>s+(agg[d]?.t2||0),0);
+    const totT1=ALL_DEPTS.reduce((s,d)=>s+(agg[d]?.t1||0),0);
+
+    // 전 기간 대비 증감
+    let deltaHtml='';
+    if(ki<sortedKeys.length-1){
+      const prevAgg=aggregatePeriod(grouped[sortedKeys[ki+1]]);
+      const prevTot=ALL_DEPTS.reduce((s,d)=>s+(prevAgg[d]?.unique||0),0);
+      const diff=Math.round(totU-prevTot);
+      if(diff>0) deltaHtml=`<span class="delta-up">▲ ${diff}</span>`;
+      else if(diff<0) deltaHtml=`<span class="delta-down">▼ ${Math.abs(diff)}</span>`;
+      else deltaHtml=`<span class="delta-same">→ 동일</span>`;
+    }
+
+    const miniCards=ALL_DEPTS.map(dept=>{
+      const v=agg[dept];
+      if(!v)return`<div class="mini-dept-card" style="border-top-color:${DEPT_RAW[dept]};opacity:.4">
+        <div class="mini-dept-name" style="color:${DEPT_RAW[dept]}">${dept}</div>
+        <div style="color:var(--muted);font-size:.8rem;margin-top:.3rem">데이터 없음</div>
+      </div>`;
+      const u=Math.round(v.unique), t3=Math.round(v.t3), t2=Math.round(v.t2), t1=Math.round(v.t1);
+      return`<div class="mini-dept-card" style="border-top-color:${DEPT_RAW[dept]}" onclick="openDeptModal('${k}','${dept}','${period}')">
+        <div class="mini-dept-name" style="color:${DEPT_RAW[dept]}">${dept}</div>
+        <div class="mini-dept-unique" style="color:${DEPT_RAW[dept]}">${u}명</div>
+        <div class="mini-dept-rate">재적대비 ${pct(v.unique,v.재적)}% · ${v.days}일 평균</div>
+        <div class="mini-tier-bar">
+          <div style="flex:${t3};background:#dc2626;min-width:${t3?2:0}px"></div>
+          <div style="flex:${t2};background:#d97706;min-width:${t2?2:0}px"></div>
+          <div style="flex:${t1};background:#059669;min-width:${t1?2:0}px"></div>
+        </div>
+        <div class="mini-tier-nums">
+          <span style="color:#dc2626">총력 ${t3}</span>
+          <span style="color:#d97706">주력 ${t2}</span>
+          <span style="color:#059669">활력 ${t1}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    html+=`<div class="period-card">
+      <div class="period-card-header" onclick="togglePeriodCard(this)">
+        <div>
+          <div class="period-label">${{weekly:'주간',monthly:'월간',quarterly:'분기',yearly:'연간'}[period]}</div>
+          <div class="period-title">${periodLabel(k,period)} ${deltaHtml}</div>
+          <div class="period-meta">데이터 ${rows.length}일</div>
+        </div>
+        <div class="period-total">
+          <div class="period-total-num">${Math.round(totU)}명</div>
+          <div class="period-total-sub">전체 실질 (평균)</div>
+          <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.4rem;font-size:.75rem;font-weight:700">
+            <span style="color:#dc2626">총력 ${Math.round(totT3)}</span>
+            <span style="color:#d97706">주력 ${Math.round(totT2)}</span>
+            <span style="color:#059669">활력 ${Math.round(totT1)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="period-card-body">
+        <div class="tier-summary-bar">
+          <div class="tier-labels">
+            <span style="color:#dc2626">총력 ${Math.round(totT3)}명 (${pct(totT3,totU)}%)</span>
+            <span style="color:#d97706">주력 ${Math.round(totT2)}명 (${pct(totT2,totU)}%)</span>
+            <span style="color:#059669">활력 ${Math.round(totT1)}명 (${pct(totT1,totU)}%)</span>
+          </div>
+          <div class="tier-bar-track">
+            <div class="tier-seg" style="flex:${totT3};background:#dc2626;min-width:${totT3?3:0}px"></div>
+            <div class="tier-seg" style="flex:${totT2};background:#d97706;min-width:${totT2?3:0}px"></div>
+            <div class="tier-seg" style="flex:${totT1};background:#059669;min-width:${totT1?3:0}px"></div>
+          </div>
+        </div>
+        <div class="mini-dept-grid">${miniCards}</div>
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML=html;
+}
+
+function togglePeriodCard(headerEl){
+  const body=headerEl.parentElement.querySelector('.period-card-body');
+  body.style.display=body.style.display==='none'?'block':'none';
+}
+
+// ══════════════════════════════════════════════════════
+// 날짜별 기록 테이블
+// ══════════════════════════════════════════════════════
+function renderDailyTable(){
+  const search=(document.getElementById('date-search')?.value||'').trim();
+  const deptFilter=document.getElementById('dept-filter')?.value||'all';
+  const rows=[...history].reverse();
+  const filtered=rows.filter(r=>{
+    if(search&&!r.date.includes(search))return false;
+    return true;
+  });
+
+  const tbody=document.getElementById('daily-tbody');
+  if(!tbody)return;
+  if(!filtered.length){
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">기록이 없습니다</td></tr>`;
+    return;
+  }
+
+  // 증감 계산용 (날짜 오름차순 원본)
+  const asc=[...history];
+
+  tbody.innerHTML=filtered.map(row=>{
+    const idx=asc.findIndex(r=>r.date===row.date);
+    const prev=idx>0?asc[idx-1]:null;
+    const total=ALL_DEPTS.reduce((s,d)=>s+(row[d]?.unique||0),0);
+    const prevTotal=prev?ALL_DEPTS.reduce((s,d)=>s+(prev[d]?.unique||0),0):null;
+    const totalDelta=prevTotal!==null?total-prevTotal:null;
+
+    const deptCells=ALL_DEPTS.map(dept=>{
+      if(deptFilter!=='all'&&deptFilter!==dept)return'';
+      const v=row[dept];
+      if(!v||typeof v!=='object')return`<td style="color:var(--muted)">-</td>`;
+      const pv=prev?.[dept];
+      const diff=pv&&typeof pv==='object'?v.unique-pv.unique:null;
+      const diffHtml=diff===null?'':diff>0?`<span class="delta-up"> ▲${diff}</span>`:diff<0?`<span class="delta-down"> ▼${Math.abs(diff)}</span>`:`<span class="delta-same"> →</span>`;
+      return`<td style="cursor:pointer" onclick="openDayModal('${row.date}','${dept}')">
+        <div style="color:${DEPT_RAW[dept]};font-weight:700">${v.unique}명${diffHtml}</div>
+        <div style="font-size:.7rem;margin-top:2px">
+          <span style="color:#dc2626">총 ${v.t3||0}</span>
+          <span style="color:#d97706;margin:0 3px">주 ${v.t2||0}</span>
+          <span style="color:#059669">활 ${v.t1||0}</span>
+        </div>
+      </td>`;
+    }).join('');
+
+    const deltaHtml=totalDelta===null?'':totalDelta>0?`<span class="delta-up"> ▲${totalDelta}</span>`:totalDelta<0?`<span class="delta-down"> ▼${Math.abs(totalDelta)}</span>`:`<span class="delta-same"> →</span>`;
+
+    return`<tr class="daily-row" onclick="openDayModal('${row.date}',null)">
+      <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">${row.date}</td>
+      ${deptCells}
+      <td style="font-weight:800;color:var(--accent)">${total}명${deltaHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// 모달: 일별 상세 명단
+// ══════════════════════════════════════════════════════
+function openDayModal(date, deptFocus){
+  const row=history.find(r=>r.date===date);
+  if(!row)return;
+  const idx=history.findIndex(r=>r.date===date);
+  const prev=idx>0?history[idx-1]:null;
+
+  document.getElementById('modal-title').textContent=`${date} 전도 현황`;
+  const allTabs = ['전체', ...ALL_DEPTS];
+  const defaultTab = deptFocus || '전체';
+  const tabs=allTabs.map(d=>`<button class="modal-dept-tab${d===defaultTab?' active':''}" onclick="showModalDept('${date}','${d}')" data-dept="${d}">${d==='전체'?'⛪ 전체':d}</button>`).join('');
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-dept-tabs">${tabs}</div>
+    <div id="modal-dept-content"></div>`;
+  showModalDept(date, defaultTab);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function showModalDept(date,dept){
+  document.querySelectorAll('.modal-dept-tab').forEach(b=>b.classList.toggle('active',b.dataset.dept===dept));
+  const row=history.find(r=>r.date===date);
+  const idx=history.findIndex(r=>r.date===date);
+  const prev=idx>0?history[idx-1]:null;
+  const el=document.getElementById('modal-dept-content');
+
+  // 전체 탭 처리
+  if(dept==='전체'){
+    const totU=ALL_DEPTS.reduce((s,d)=>s+(row[d]?.unique||0),0);
+    const totRej=ALL_DEPTS.reduce((s,d)=>s+(row[d]?.재적||0),0);
+    const totT3=ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t3||0),0);
+    const totT2=ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t2||0),0);
+    const totT1=ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t1||0),0);
+    const totRes=RESULT_KEYS.reduce((o,k)=>{o[k]=ALL_DEPTS.reduce((s,d)=>s+getRC(row[d]?.results,k),0);return o;},{});
+    const prevTotU=prev?ALL_DEPTS.reduce((s,d)=>s+(prev[d]?.unique||0),0):null;
+    const prevTotRes=prev?RESULT_KEYS.reduce((o,k)=>{o[k]=ALL_DEPTS.reduce((s,d)=>s+getRC(prev[d]?.results,k),0);return o;},'{}'):null;
+    const diffU=prevTotU!==null?totU-prevTotU:null;
+    const diffHtml=diffU===null?'':diffU>0?`<span class="delta-up">▲ ${diffU}</span>`:diffU<0?`<span class="delta-down">▼ ${Math.abs(diffU)}</span>`:`<span class="delta-same">→</span>`;
+    el.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1.5rem">
+        <div style="background:#eff4ff;border-radius:12px;padding:1rem;border-left:4px solid #2563eb">
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">실질 전도 인원</div>
+          <div style="font-size:2rem;font-weight:900;color:#2563eb">${totU}명 ${diffHtml}</div>
+          <div style="font-size:.75rem;color:var(--muted)">재적 ${totRej}명 대비 ${pct(totU,totRej)}%</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:12px;padding:1rem;border-left:4px solid #dc2626">
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">총력 활동자</div>
+          <div style="font-size:2rem;font-weight:900;color:#dc2626">${totT3}명</div>
+          <div style="font-size:.75rem;color:var(--muted)">${pct(totT3,totU)}%</div>
+        </div>
+        <div style="background:#fffbeb;border-radius:12px;padding:1rem;border-left:4px solid #d97706">
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">주력 활동자</div>
+          <div style="font-size:2rem;font-weight:900;color:#d97706">${totT2}명</div>
+          <div style="font-size:.75rem;color:var(--muted)">${pct(totT2,totU)}%</div>
+        </div>
+        <div style="background:#ecfdf5;border-radius:12px;padding:1rem;border-left:4px solid #059669">
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">활력 활동자</div>
+          <div style="font-size:2rem;font-weight:900;color:#059669">${totT1}명</div>
+          <div style="font-size:.75rem;color:var(--muted)">${pct(totT1,totU)}%</div>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border-radius:14px;padding:1.2rem;border:1px solid var(--border);margin-bottom:1.2rem;">
+        <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.9rem;letter-spacing:1px;text-transform:uppercase;">📊 전도 프로세스 (전체)</div>
+        ${makeResultGrid(totRes, prev ? RESULT_KEYS.reduce((o,k)=>{o[k]=ALL_DEPTS.reduce((s,d)=>s+getRC(prev[d]?.results,k),0);return o;},{}) : null)}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem">
+        ${ALL_DEPTS.map(d=>{
+          const v=row[d]; if(!v||typeof v!=='object') return `<div style="background:var(--surface2);border-radius:12px;padding:1rem;opacity:.4"><div style="font-weight:700;color:${DEPT_RAW[d]}">${d}</div><div style="color:var(--muted);font-size:.8rem;margin-top:4px">데이터 없음</div></div>`;
+          return `<div style="background:var(--surface2);border-radius:12px;padding:1rem;border-top:3px solid ${DEPT_RAW[d]};cursor:pointer" onclick="showModalDept('${date}','${d}')">
+            <div style="font-weight:800;color:${DEPT_RAW[d]};font-size:.95rem;margin-bottom:.3rem">${d}</div>
+            <div style="font-size:1.3rem;font-weight:900;color:${DEPT_RAW[d]}">${v.unique}명 <span style="font-size:.8rem;opacity:.7">(${pct(v.unique,v.재적)}%)</span></div>
+            <div style="font-size:.75rem;margin-top:4px">
+              <span style="color:#dc2626">총력 ${v.t3||0}</span>
+              <span style="color:#d97706;margin:0 6px">주력 ${v.t2||0}</span>
+              <span style="color:#059669">활력 ${v.t1||0}</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    return;
+  }
+
+  const v=row?.[dept];
+  const pv=prev?.[dept];
+  if(!v||typeof v!=='object'){el.innerHTML=`<div style="padding:2rem;text-align:center;color:var(--muted)">해당 날짜에 ${dept} 데이터가 없습니다</div>`;return;}
+
+  const color=DEPT_RAW[dept];
+  const rate=pct(v.unique,v.재적);
+
+  // 증감 계산
+  const diffUnique=pv&&typeof pv==='object'?v.unique-pv.unique:null;
+  const diffHtml=diffUnique===null?'':diffUnique>0?`<span class="delta-up">▲ ${diffUnique}</span>`:diffUnique<0?`<span class="delta-down">▼ ${Math.abs(diffUnique)}</span>`:`<span class="delta-same">→ 변동없음</span>`;
+
+  // 명단 증감: 전날 대비 신규/이탈
+  const prevT3=new Set(pv?.t3names||[]), prevT2=new Set(pv?.t2names||[]), prevT1=new Set(pv?.t1names||[]);
+  const allPrev=new Set([...prevT3,...prevT2,...prevT1]);
+  const currT3=new Set(v.t3names||[]), currT2=new Set(v.t2names||[]), currT1=new Set(v.t1names||[]);
+  const allCurr=new Set([...currT3,...currT2,...currT1]);
+  const newMembers=[...allCurr].filter(n=>!allPrev.has(n));
+  const leftMembers=[...allPrev].filter(n=>!allCurr.has(n));
+  // 강도 변동
+  const upgraded=[...allCurr].filter(n=>allPrev.has(n)&&(
+    (prevT1.has(n)&&(currT2.has(n)||currT3.has(n)))||(prevT2.has(n)&&currT3.has(n))
+  ));
+  const downgraded=[...allCurr].filter(n=>allPrev.has(n)&&(
+    (prevT3.has(n)&&(currT2.has(n)||currT1.has(n)))||(prevT2.has(n)&&currT1.has(n))
+  ));
+
+  const makeNameTags=(names,bg,tc)=>names.length
+    ?names.map(n=>`<span class="name-tag" style="background:${bg};color:${tc}">${n}</span>`).join('')
+    :`<span style="color:var(--muted);font-size:.82rem">없음</span>`;
+
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem">
+      <div style="background:${color}15;border-radius:12px;padding:1rem;border-left:4px solid ${color}">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">실질 전도 인원</div>
+        <div style="font-size:2rem;font-weight:900;color:${color}">${v.unique}명 ${diffHtml}</div>
+        <div style="font-size:.75rem;color:var(--muted)">재적 ${v.재적}명 대비 ${rate}%</div>
+      </div>
+      <div style="background:#fef2f2;border-radius:12px;padding:1rem;border-left:4px solid #dc2626">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">총력 활동자</div>
+        <div style="font-size:2rem;font-weight:900;color:#dc2626">${v.t3||0}명</div>
+        <div style="font-size:.75rem;color:var(--muted)">${pct(v.t3||0,v.unique)}%</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:12px;padding:1rem;border-left:4px solid #d97706">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">주력 활동자</div>
+        <div style="font-size:2rem;font-weight:900;color:#d97706">${v.t2||0}명</div>
+        <div style="font-size:.75rem;color:var(--muted)">${pct(v.t2||0,v.unique)}%</div>
+      </div>
+      <div style="background:#ecfdf5;border-radius:12px;padding:1rem;border-left:4px solid #059669">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">활력 활동자</div>
+        <div style="font-size:2rem;font-weight:900;color:#059669">${v.t1||0}명</div>
+        <div style="font-size:.75rem;color:var(--muted)">${pct(v.t1||0,v.unique)}%</div>
+      </div>
+    </div>
+
+    <!-- 명단 섹션 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem">
+      <div style="background:var(--총력-bg);border-radius:12px;padding:1rem">
+        <div style="font-size:.72rem;font-weight:800;color:#dc2626;letter-spacing:1px;margin-bottom:.5rem">🔴 총력 활동자</div>
+        <div class="name-grid">${makeNameTags(v.t3names||[],'rgba(220,38,38,.12)','#dc2626')}</div>
+      </div>
+      <div style="background:var(--주력-bg);border-radius:12px;padding:1rem">
+        <div style="font-size:.72rem;font-weight:800;color:#d97706;letter-spacing:1px;margin-bottom:.5rem">🟡 주력 활동자</div>
+        <div class="name-grid">${makeNameTags(v.t2names||[],'rgba(217,119,6,.12)','#d97706')}</div>
+      </div>
+      <div style="background:var(--활력-bg);border-radius:12px;padding:1rem">
+        <div style="font-size:.72rem;font-weight:800;color:#059669;letter-spacing:1px;margin-bottom:.5rem">🟢 활력 활동자</div>
+        <div class="name-grid">${makeNameTags(v.t1names||[],'rgba(5,150,105,.1)','#059669')}</div>
+      </div>
+    </div>
+
+    <!-- 그룹별 명단 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem">
+      ${['센터관리','전도활동','전도단'].map(grp=>`
+        <div style="background:var(--surface2);border-radius:12px;padding:1rem;border:1px solid var(--border)">
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.5rem">${grp} (${(v.groups?.[grp]||[]).length}명)</div>
+          <div class="name-grid">${makeNameTags(v.groups?.[grp]||[],'#e8eaf0','#374151')}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- 전도결과 Funnel -->
+    <div style="background:var(--surface2);border-radius:14px;padding:1.2rem;border:1px solid var(--border);margin-bottom:1.2rem;">
+      <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.9rem;letter-spacing:1px;text-transform:uppercase;">📊 전도 프로세스</div>
+      ${makeResultGrid(v.results, pv && typeof pv==='object' ? pv.results : null)}
+    </div>
+
+    ${prev&&typeof pv==='object'?`
+    <!-- 전날 대비 변동 -->
+    <div style="background:var(--surface2);border-radius:14px;padding:1.2rem;border:1px solid var(--border)">
+      <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:1rem;letter-spacing:1px;text-transform:uppercase">전날(${prev.date}) 대비 변동</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem">
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#059669;margin-bottom:.4rem">🆕 신규 진입 (${newMembers.length}명)</div>
+          <div class="name-grid">${makeNameTags(newMembers,'rgba(5,150,105,.1)','#059669')}</div>
+        </div>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#dc2626;margin-bottom:.4rem">👋 이탈 (${leftMembers.length}명)</div>
+          <div class="name-grid">${makeNameTags(leftMembers,'rgba(220,38,38,.1)','#dc2626')}</div>
+        </div>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--accent);margin-bottom:.4rem">⬆️ 강도 상승 (${upgraded.length}명)</div>
+          <div class="name-grid">${makeNameTags(upgraded,'rgba(37,99,235,.1)','var(--accent)')}</div>
+        </div>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.4rem">⬇️ 강도 하락 (${downgraded.length}명)</div>
+          <div class="name-grid">${makeNameTags(downgraded,'rgba(0,0,0,.06)','var(--muted)')}</div>
+        </div>
+      </div>
+    </div>` : `<div style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem">이전 날짜 데이터가 없어 변동 비교를 표시할 수 없습니다</div>`}
+  `;
+}
+
+// 추이 탭: 부서 카드 클릭 → 해당 기간 부서 명단 모달
+function openDeptModal(periodKey,dept,period){
+  const rows=history.filter(r=>periodKey_(r.date,period)===periodKey);
+  function periodKey_(d,p){return periodKey(d,p);}
+  const grouped={[periodKey]:history.filter(r=>{
+    if(period==='weekly')return weekStart(r.date)===periodKey;
+    if(period==='monthly')return r.date.slice(0,7)===periodKey;
+    if(period==='quarterly'){const[y,m]=r.date.split('-').map(Number);return`${y}-Q${Math.ceil(m/3)}`===periodKey;}
+    return r.date.slice(0,4)===periodKey;
+  })};
+  const agg=aggregatePeriod(grouped[periodKey]);
+  const v=agg[dept];
+  if(!v){return;}
+  document.getElementById('modal-title').textContent=`${periodLabel(periodKey,period)} · ${dept}`;
+  const rate=pct(v.unique,v.재적);
+  const makeNameTags=(names,bg,tc)=>names.length
+    ?names.map(n=>`<span class="name-tag" style="background:${bg};color:${tc}">${n}</span>`).join('')
+    :`<span style="color:var(--muted);font-size:.82rem">없음</span>`;
+  document.getElementById('modal-body').innerHTML=`
+    <div style="color:var(--muted);font-size:.8rem;margin-bottom:1.2rem">기간 내 ${v.days}일 평균 · 명단은 기간 내 합집합</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-bottom:1.5rem">
+      <div style="background:${DEPT_RAW[dept]}15;border-radius:12px;padding:1rem;border-left:4px solid ${DEPT_RAW[dept]}">
+        <div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">실질 (평균)</div>
+        <div style="font-size:1.8rem;font-weight:900;color:${DEPT_RAW[dept]}">${Math.round(v.unique)}명</div>
+        <div style="font-size:.72rem;color:var(--muted)">${rate}%</div>
+      </div>
+      <div style="background:#fef2f2;border-radius:12px;padding:1rem;border-left:4px solid #dc2626">
+        <div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">총력 (평균)</div>
+        <div style="font-size:1.8rem;font-weight:900;color:#dc2626">${Math.round(v.t3)}명</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:12px;padding:1rem;border-left:4px solid #d97706">
+        <div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">주력 (평균)</div>
+        <div style="font-size:1.8rem;font-weight:900;color:#d97706">${Math.round(v.t2)}명</div>
+      </div>
+      <div style="background:#ecfdf5;border-radius:12px;padding:1rem;border-left:4px solid #059669">
+        <div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:.3rem">활력 (평균)</div>
+        <div style="font-size:1.8rem;font-weight:900;color:#059669">${Math.round(v.t1)}명</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+      <div style="background:var(--총력-bg);border-radius:12px;padding:1rem">
+        <div style="font-size:.72rem;font-weight:800;color:#dc2626;margin-bottom:.5rem">🔴 총력 명단</div>
+        <div class="name-grid">${makeNameTags(v.t3names,'rgba(220,38,38,.12)','#dc2626')}</div>
+      </div>
+      <div style="background:var(--주력-bg);border-radius:12px;padding:1rem">
+        <div style="font-size:.72rem;font-weight:800;color:#d97706;margin-bottom:.5rem">🟡 주력 명단</div>
+        <div class="name-grid">${makeNameTags(v.t2names,'rgba(217,119,6,.12)','#d97706')}</div>
+      </div>
+      <div style="background:var(--활력-bg);border-radius:12px;padding:1rem">
+        <div style="font-size:.72rem;font-weight:800;color:#059669;margin-bottom:.5rem">🟢 활력 명단</div>
+        <div class="name-grid">${makeNameTags(v.t1names,'rgba(5,150,105,.1)','#059669')}</div>
+      </div>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e){if(e.target===document.getElementById('modal-overlay'))closeModalDirect();}
+function closeModalDirect(){document.getElementById('modal-overlay').classList.remove('open');}
+
+// 초기 렌더 (공유 데이터 로드 후)
+(async function init() {
+  await loadSharedData();
+  populateCompareDates();
+  if (currentMainTab === 'today') renderToday();
+  if (currentMainTab === 'trend') renderTrend(currentPeriod);
+  if (currentMainTab === 'daily') renderDailyTable();
+  const syncEl = document.getElementById('sync-status');
+  if (syncEl) syncEl.innerHTML = '✅ 공유 데이터 연결됨';
+})();
+
+
+
+</script>
+</body>
+</html>
