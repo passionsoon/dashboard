@@ -578,6 +578,42 @@ document.getElementById('raw-input').addEventListener('input', function() {
   const p = parseReport(text);
   const u = getUnique(p.groups);
   document.getElementById('parse-preview').style.display = 'block';
+
+  // 중복 감지: 같은 그룹 안에서 중복, 그룹 간 중복 모두 표시
+  const dupInfo = [];
+  const GRP_KEYS = ['센터관리','전도활동','전도단'];
+
+  // 그룹 내 중복
+  GRP_KEYS.forEach(grp => {
+    const seen = {}, dups = [];
+    p.groups[grp].forEach(n => {
+      if (seen[n]) { if (!dups.includes(n)) dups.push(n); }
+      else seen[n] = true;
+    });
+    if (dups.length) dupInfo.push(`<span style="color:#dc2626;font-weight:700">[${grp} 내 중복]</span> ${dups.join(', ')}`);
+  });
+
+  // 그룹 간 중복 (실질 인원 감소 원인)
+  const allNames = [...p.groups.센터관리, ...p.groups.전도활동, ...p.groups.전도단];
+  const nameCount = {};
+  allNames.forEach(n => nameCount[n] = (nameCount[n]||0) + 1);
+  const crossDups = Object.keys(nameCount).filter(n => nameCount[n] > 1);
+  if (crossDups.length) {
+    const crossDetail = crossDups.map(n => {
+      const inGroups = GRP_KEYS.filter(g => p.groups[g].includes(n));
+      return `${n}(${inGroups.map(g=>g.replace('센터관리','센').replace('전도활동','전').replace('전도단','단')).join('·')})`;
+    });
+    dupInfo.push(`<span style="color:#d97706;font-weight:700">[그룹간 중복]</span> ${crossDetail.join(', ')}`);
+  }
+
+  const dupHtml = dupInfo.length
+    ? `<div style="margin-top:.6rem;padding:.6rem .8rem;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;font-size:.78rem;line-height:1.8">
+        ⚠️ <strong>중복 감지 (실질인원에서 제외됨)</strong><br>
+        ${dupInfo.join('<br>')}
+       </div>`
+    : `<div style="margin-top:.5rem;font-size:.75rem;color:#059669">✅ 중복 없음</div>`;
+
+  document.getElementById('parse-preview').style.display = 'block';
   document.getElementById('preview-content').innerHTML = `
     <div class="parse-row">
       <span>부서 <strong>${p.dept||'(감지중)'}</strong></span>
@@ -588,11 +624,14 @@ document.getElementById('raw-input').addEventListener('input', function() {
       <span>센터관리 <strong>${p.groups.센터관리.length}명</strong></span>
       <span>전도활동 <strong>${p.groups.전도활동.length}명</strong></span>
       <span>전도단 <strong>${p.groups.전도단.length}명</strong></span>
-      <span style="color:var(--accent)">→ 실질 <strong>${u.size}명</strong></span>
+      <span style="color:var(--accent)">→ 실질 <strong>${u.size}명</strong>
+        ${allNames.length - u.size > 0 ? `<span style="color:#d97706;font-size:.75rem"> (${allNames.length - u.size}명 중복제외)</span>` : ''}
+      </span>
     </div>
     <div class="parse-row" style="font-size:.75rem">
       ${RESULT_KEYS.map(k=>`<span>${k} <strong>${p.results[k].count}</strong></span>`).join('')}
-    </div>`;
+    </div>
+    ${dupHtml}`;
 });
 
 // ─ 유틸 ─
