@@ -154,7 +154,34 @@ textarea::placeholder{color:var(--muted);}
 .empty-text{font-size:1rem;line-height:2;}
 /* ── SVG 차트 ── */
 .chart-wrap{overflow-x:auto;margin-top:1rem;}
-@media(max-width:640px){body{padding:1rem;}.stats-grid{grid-template-columns:repeat(2,1fr);}.stat-num{font-size:2.2rem;}}
+@media(max-width:768px){
+  body{padding:.8rem;}
+  .header{flex-wrap:wrap;gap:.5rem;}
+  .logo{font-size:1.4rem;}
+  .main-tabs{width:100%;overflow-x:auto;flex-wrap:nowrap;padding:.4rem;}
+  .main-tab{padding:.5rem .9rem;font-size:.82rem;white-space:nowrap;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .stat-num{font-size:2rem;}
+  .dept-grid{grid-template-columns:1fr;}
+  .dept-card .intensity-names{display:flex;flex-wrap:wrap;}
+  .modal{padding:1.2rem;margin:.5rem;}
+  .modal-overlay{padding:.5rem;}
+  .result-section{padding:1rem;}
+  .period-tabs{flex-wrap:wrap;gap:.4rem;}
+  .period-tab{font-size:.8rem;padding:.4rem .9rem;}
+  /* 테이블 가로 스크롤 */
+  .summary-table{font-size:.8rem;}
+  .summary-table th,.summary-table td{padding:.5rem .4rem;}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .stat-num{font-size:1.7rem;}
+  .main-tab{padding:.4rem .7rem;font-size:.78rem;}
+  .btn{padding:.55rem 1rem;font-size:.82rem;}
+  .dept-tabs{gap:.4rem;}
+  .dept-tab{padding:.4rem .9rem;font-size:.82rem;}
+  #compare-date, #view-date, #report-date{font-size:.82rem;padding:.4rem .6rem;}
+}
 /* ── 전도결과 섹션 ── */
 .result-funnel-wrap{margin-top:1.2rem;border-top:1px solid var(--border);padding-top:1rem;}
 .result-funnel-title{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.8rem;}
@@ -231,13 +258,14 @@ textarea::placeholder{color:var(--muted);}
         <!-- 비교 기준일 -->
         <div style="display:flex;align-items:center;gap:.5rem;">
           <label style="font-size:.82rem;font-weight:700;color:var(--muted);">📊 비교 기준일</label>
-          <select id="compare-date" onchange="renderToday()"
+          <select id="compare-date" onchange="currentCompareDate=this.value;renderToday()"
             style="padding:.5rem .9rem;border-radius:10px;border:1.5px solid var(--border);font-family:inherit;font-size:.9rem;outline:none;background:var(--surface2);color:var(--text);cursor:pointer;min-width:160px;">
             <option value="">비교 안 함</option>
           </select>
         </div>
       </div>
       <div style="display:flex;gap:.7rem;">
+        <button class="btn btn-secondary" onclick="openGoalModal()" style="display:flex;align-items:center;gap:.5rem;">🎯 목표설정</button>
         <button class="btn btn-secondary" onclick="captureToday('download')" style="display:flex;align-items:center;gap:.5rem;">📷 이미지 저장</button>
         <button class="btn btn-primary" onclick="captureToday('copy')" style="display:flex;align-items:center;gap:.5rem;">📋 클립보드 복사</button>
       </div>
@@ -262,6 +290,7 @@ textarea::placeholder{color:var(--muted);}
       <button class="period-tab" onclick="switchPeriod('monthly',this)">월간</button>
       <button class="period-tab" onclick="switchPeriod('quarterly',this)">분기</button>
       <button class="period-tab" onclick="switchPeriod('yearly',this)">연간</button>
+      <button class="period-tab" onclick="switchPeriod('dayofweek',this)">요일별</button>
     </div>
     <div id="trend-content"></div>
   </div>
@@ -270,7 +299,12 @@ textarea::placeholder{color:var(--muted);}
 <div id="tab-daily" style="display:none;">
   <div class="result-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.8rem;">
-      <div class="section-title" style="margin-bottom:0">날짜별 누적 기록</div>
+      <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+        <div class="section-title" style="margin-bottom:0">날짜별 누적 기록</div>
+        <button onclick="openWeeklyReport()" style="padding:4px 10px;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent-light);color:var(--accent);font-size:.78rem;font-weight:700;cursor:pointer">📝 주간보고서</button>
+        <button onclick="openMemberSearch()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #7c3aed;background:#f5f3ff;color:#7c3aed;font-size:.78rem;font-weight:700;cursor:pointer">🔍 사명자 추적</button>
+        <button onclick="openLeaderStats()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #059669;background:#ecfdf5;color:#059669;font-size:.78rem;font-weight:700;cursor:pointer">🏆 인도자 결실</button>
+      </div>
       <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
         <input type="text" id="date-search" placeholder="날짜 검색 (예: 2026-06)"
           oninput="renderDailyTable()"
@@ -294,6 +328,10 @@ textarea::placeholder{color:var(--muted);}
           <th style="color:var(--부녀)">부녀회</th>
           <th style="color:var(--청년)">청년회</th>
           <th>전체</th>
+          <th style="color:#059669">전도결과</th>
+          <th style="color:#059669">전도결과</th>
+          <th style="color:#059669;font-size:.75rem">전도결과</th>
+          <th style="color:var(--muted)">관리</th>
         </tr></thead>
         <tbody id="daily-tbody"></tbody>
       </table>
@@ -339,27 +377,87 @@ const SYNC_STALE_MS = 60000; // 1분 이상 지나면 자동 갱신
 // Google Apps Script 웹앱 URL (구글시트 백엔드)
 const GAS_URL = 'https://script.google.com/macros/s/AKfycby_zVgeSrBGndUVRxgP89V3Zg9ELBAcdBeoULhkdL_kBxdUlxl41DGqNt6rGKLHiCk/exec';
 
-// 공유 클라우드 저장소(구글시트)에서 로드 — 단일 요청
+// 공유 클라우드 저장소(구글시트)에서 로드
 async function loadSharedData() {
+  const syncEl = document.getElementById('sync-status');
   try {
-    const res = await fetch(GAS_URL + '?key=all');
-    const json = await res.json();
+    // GAS는 302 리다이렉트를 함 → redirect:'follow' + 최종 URL 직접 fetch
+    // 먼저 redirect:'manual'로 최종 URL 파악 후 재요청
+    const probeRes = await fetch(GAS_URL + '?key=all', {
+      redirect: 'follow',
+      method: 'GET',
+    });
+    const text = await probeRes.text();
+    const json = JSON.parse(text);
     if (json.all) {
       const parsed = JSON.parse(json.all);
       deptData = parsed.deptData || {};
       history  = parsed.history  || [];
     } else {
-      // 구버전 폴백: deptData/history 개별 키
       deptData = json.deptData ? JSON.parse(json.deptData) : {};
       history  = json.history  ? JSON.parse(json.history)  : [];
     }
+    if (syncEl) syncEl.innerHTML = '✅ 공유 데이터 연결됨';
   } catch(e) {
-    console.error('공유 데이터 로드 실패', e);
-    deptData = deptData || {};
-    history  = history  || [];
+    // fetch 실패 시 JSONP 폴백
+    console.warn('fetch 실패, JSONP 폴백 시도:', e.message);
+    await loadSharedDataJSONP();
+    return;
   }
   storageReady = true;
   lastSyncAt = Date.now();
+}
+
+function loadSharedDataJSONP() {
+  const syncEl = document.getElementById('sync-status');
+  return new Promise((resolve) => {
+    const cbName = '__gasCallback__';
+    const timer = setTimeout(() => {
+      delete window[cbName];
+      const s = document.getElementById('gas-jsonp-script');
+      if (s) s.remove();
+      if (syncEl) syncEl.innerHTML = '⚠️ 연결 실패';
+      storageReady = true;
+      lastSyncAt = Date.now();
+      resolve();
+    }, 12000);
+
+    window[cbName] = function(json) {
+      clearTimeout(timer);
+      delete window[cbName];
+      const s = document.getElementById('gas-jsonp-script');
+      if (s) s.remove();
+      try {
+        if (json.all) {
+          const parsed = JSON.parse(json.all);
+          deptData = parsed.deptData || {};
+          history  = parsed.history  || [];
+        } else {
+          deptData = json.deptData ? JSON.parse(json.deptData) : {};
+          history  = json.history  ? JSON.parse(json.history)  : [];
+        }
+        if (syncEl) syncEl.innerHTML = '✅ 공유 데이터 연결됨';
+      } catch(e) {
+        if (syncEl) syncEl.innerHTML = '⚠️ 데이터 오류';
+      }
+      storageReady = true;
+      lastSyncAt = Date.now();
+      resolve();
+    };
+
+    const s = document.createElement('script');
+    s.id = 'gas-jsonp-script';
+    s.src = GAS_URL + '?key=all&callback=__gasCallback__';
+    s.onerror = () => {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (syncEl) syncEl.innerHTML = '⚠️ 스크립트 로드 실패';
+      storageReady = true;
+      lastSyncAt = Date.now();
+      resolve();
+    };
+    document.head.appendChild(s);
+  });
 }
 
 // 공유 클라우드 저장소(구글시트)에 저장 — 단일 요청
@@ -379,11 +477,12 @@ async function saveSharedData() {
 
 let currentDept = '자문회';
 let currentPeriod = 'weekly';
+let currentCompareDate = ''; // 비교 기준일 전역 유지
 let currentMainTab = 'input';
 
 const now = new Date();
 // 날짜 피커 초기값 = 오늘
-setTimeout(()=>{const el=document.getElementById('report-date');if(el)el.value=fmtDate(now);},0);
+// 날짜 초기화는 init()에서 처리
 document.getElementById('today-badge').textContent =
   `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
 
@@ -637,6 +736,17 @@ document.getElementById('raw-input').addEventListener('input', function() {
 // ─ 유틸 ─
 function getUnique(g){return new Set([...g.센터관리,...g.전도활동,...g.전도단]);}
 function fmtDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+const DAY_KR = ['일','월','화','수','목','금','토'];
+const DAY_COLOR = {'일':'#dc2626','토':'#2563eb'};
+function getDayKr(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return DAY_KR[d.getDay()];
+}
+function dayBadge(dateStr) {
+  const day = getDayKr(dateStr);
+  const color = DAY_COLOR[day] || '#374151';
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${color}18;color:${color};font-size:.72rem;font-weight:800;margin-left:5px">${day}</span>`;
+}
 function pct(n,d){return d?Math.round(n/d*100):0;}
 
 async function manualRefresh() {
@@ -653,7 +763,7 @@ async function manualRefresh() {
 function populateCompareDates() {
   const compareSel = document.getElementById('compare-date');
   const viewSel    = document.getElementById('view-date');
-  const currentCompare = compareSel ? compareSel.value : '';
+  const currentCompare = currentCompareDate || (compareSel ? compareSel.value : '');
   const currentView    = viewSel    ? viewSel.value    : '';
   const dates = [...history].sort((a,b)=>a.date<b.date?1:-1).map(r=>r.date);
 
@@ -690,19 +800,18 @@ function switchMain(tab){
     b.classList.toggle('active',['input','today','trend','daily'][i]===tab);
   });
   if(tab!=='input') {
-    const stale = (Date.now() - lastSyncAt) > SYNC_STALE_MS;
-    if (stale) {
+    populateCompareDates();
+    if(tab==='today') renderToday();
+    if(tab==='trend') renderTrend(currentPeriod);
+    if(tab==='daily') renderDailyTable();
+    // 1분 이상 지났으면 백그라운드 갱신 (렌더 막지 않음)
+    if ((Date.now() - lastSyncAt) > SYNC_STALE_MS) {
       loadSharedData().then(() => {
         populateCompareDates();
-        if(tab==='today') renderToday();
-        if(tab==='trend') renderTrend(currentPeriod);
-        if(tab==='daily') renderDailyTable();
+        if(currentMainTab==='today') renderToday();
+        if(currentMainTab==='trend') renderTrend(currentPeriod);
+        if(currentMainTab==='daily') renderDailyTable();
       });
-    } else {
-      populateCompareDates();
-      if(tab==='today') renderToday();
-      if(tab==='trend') renderTrend(currentPeriod);
-      if(tab==='daily') renderDailyTable();
     }
   }
 }
@@ -748,7 +857,9 @@ function parseAndAdd(){
   saveSharedData().then(() => {
     if (syncEl0) syncEl0.innerHTML = '✅ 공유 데이터 연결됨';
   });
-  alert(`✅ ${dept} 집계 완료! (모든 사단원에게 공유됨)\n실질: ${tiers.unique}명 (총력 ${tiers.t3.length} 주력 ${tiers.t2.length} 활력 ${tiers.t1.length})`);
+  // 저장 완료 토스트 + 오늘 현황 자동 이동
+  showToast(`✅ ${dept} 집계 완료! 실질 ${tiers.unique}명`);
+  setTimeout(() => switchMain('today'), 800);
   if(currentMainTab==='today') renderToday();
 }
 
@@ -962,6 +1073,25 @@ function renderToday(){
         <div style="height:100%;width:${pct(t.n,totalUnique)}%;background:${t.c};border-radius:3px"></div>
       </div>
     </div>`).join('');
+  // 목표달성률 계산
+  const deptGoalCards = ALL_DEPTS.map(dept => {
+    const d = viewData[dept];
+    if (!d) return '';
+    const rate = pct(d.unique||0, d.재적||1);
+    const goal = getGoalRate(dept);
+    const status = goalStatus(rate, goal);
+    const progress = Math.min(Math.round(rate/goal*100),100);
+    return `<div style="background:var(--surface2);border-radius:10px;padding:.6rem .8rem;border-left:3px solid ${status.color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:.78rem;font-weight:700;color:${DEPT_RAW[dept]}">${dept}</span>
+        <span style="font-size:.72rem;color:${status.color};font-weight:700">${status.icon} ${rate}%/${goal}%</span>
+      </div>
+      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${progress}%;background:${status.color};border-radius:3px;transition:width .5s"></div>
+      </div>
+    </div>`;
+  }).join('');
+
   statsGrid.innerHTML = `
     <div class="stat-card" style="border-left:4px solid #64748b">
       <div class="stat-label">전체 재적</div>
@@ -982,6 +1112,16 @@ function renderToday(){
       <div class="stat-num" style="color:#d97706">${depts.length}/4</div>
       <div class="stat-sub">부서별 보고</div>
     </div>`;
+  // 목표 달성률 카드 추가
+  if (deptGoalCards) {
+    statsGrid.innerHTML += `<div class="stat-card" style="grid-column:1/-1;border-left:4px solid #7c3aed">
+      <div class="stat-label" style="display:flex;justify-content:space-between">
+        <span>🎯 부서별 목표 달성률</span>
+        <button onclick="openGoalModal()" style="font-size:.7rem;color:#7c3aed;background:transparent;border:none;cursor:pointer;font-weight:700">설정변경</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem;margin-top:.6rem">${deptGoalCards}</div>
+    </div>`;
+  }
 
   // 부서 카드
   const deptGrid=document.getElementById('dept-grid');
@@ -1059,35 +1199,7 @@ function renderToday(){
           </div>
         </div>
       </div></div>`;
-  // ── 전체 합산 카드 ──
-  const allT3names=[...new Set(ALL_DEPTS.flatMap(d=>deptData[d]?Array.isArray(deptData[d].t3)?deptData[d].t3:(deptData[d].t3names||[]):[] ))];
-  const allT2names=[...new Set(ALL_DEPTS.flatMap(d=>deptData[d]?Array.isArray(deptData[d].t2)?deptData[d].t2:(deptData[d].t2names||[]):[] ))];
-  const allT1names=[...new Set(ALL_DEPTS.flatMap(d=>deptData[d]?Array.isArray(deptData[d].t1)?deptData[d].t1:(deptData[d].t1names||[]):[] ))];
-  const totalT3p=pct(totalT3,totalUnique), totalT2p=pct(totalT2,totalUnique), totalT1p=pct(totalT1,totalUnique);
-  const GRP_LABELS_ALL={센터관리:'센',전도활동:'전',전도단:'단'};
-  const allGroups={
-    센터관리:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.센터관리||[]))],
-    전도활동:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.전도활동||[]))],
-    전도단:[...new Set(ALL_DEPTS.flatMap(d=>viewData[d]?.groups?.전도단||[]))],
-  };
-  const makeChipsAll=(names,chipBg,chipTc)=>names.map(n=>`<span class="i-chip" style="background:${chipBg};color:${chipTc}">${n}</span>`).join('');
-  const makeGroupRowAll=grp=>`<div class="group-row"><div class="group-top">
-    <div class="group-name">${grp}</div>
-    <div class="group-count" style="color:#2563eb">${allGroups[grp].length}
-      <span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:4px">(재적대비 ${pct(allGroups[grp].length,totalRejeok)}%)</span>
-    </div></div></div>`;
-  const makeTierAll=(label,names,blk,cb,ct,tc,np,npr)=>!names.length?'':
-    `<div class="intensity-block" style="background:${blk}">
-      <div class="intensity-header">
-        <span class="intensity-badge" style="background:${tc};color:#fff">${label}</span>
-        <span class="intensity-cnt" style="color:${tc}">
-          <span style="font-size:1rem;font-weight:900">${names.length}명</span>
-          <span style="font-size:.7rem;opacity:.75">실질 ${np}% · 재적 ${npr}%</span>
-        </span>
-      </div>
-      <div class="intensity-names">${makeChipsAll(names,cb,ct)}</div>
-    </div>`;
-
+  // ── 교회 전체 합산 카드는 아래에서 처리 ──
   deptGrid.innerHTML += `<div class="dept-card" style="border-top:4px solid #2563eb;grid-column:1/-1;">
     <div class="dept-header">
       <div class="dept-name" style="color:#2563eb">⛪ 교회 전체</div>
@@ -1519,10 +1631,115 @@ function switchPeriod(p,btn){
   renderTrend(p);
 }
 
+
+function renderDayOfWeekView() {
+  const el = document.getElementById('trend-content');
+  // 요일별 집계
+  const dayStats = {}; // {0~6: {dates:[], totU:[], totT3:[], ...}}
+  DAY_KR.forEach((d,i) => dayStats[i] = {label:d, dates:[], totU:[], totT3:[], totT2:[], totT1:[], results:{신규찾기:[],연결:[],육따:[],영따:[],복음방:[],센터확답:[]}});
+
+  history.forEach(row => {
+    const d = new Date(row.date + 'T00:00:00');
+    const dow = d.getDay();
+    const totU  = ALL_DEPTS.reduce((s,dept)=>s+(row[dept]?.unique||0),0);
+    const totT3 = ALL_DEPTS.reduce((s,dept)=>s+(row[dept]?.t3||0),0);
+    const totT2 = ALL_DEPTS.reduce((s,dept)=>s+(row[dept]?.t2||0),0);
+    const totT1 = ALL_DEPTS.reduce((s,dept)=>s+(row[dept]?.t1||0),0);
+    dayStats[dow].dates.push(row.date);
+    dayStats[dow].totU.push(totU);
+    dayStats[dow].totT3.push(totT3);
+    dayStats[dow].totT2.push(totT2);
+    dayStats[dow].totT1.push(totT1);
+    RESULT_KEYS.forEach(k => {
+      const cnt = ALL_DEPTS.reduce((s,dept)=>s+getRC(row[dept]?.results,k),0);
+      dayStats[dow].results[k].push(cnt);
+    });
+  });
+
+  const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length*10)/10 : 0;
+  const maxU = Math.max(...Object.values(dayStats).map(s=>avg(s.totU)),1);
+
+  // 요일 순서: 일~토
+  const rows = Object.entries(dayStats).map(([dow, s]) => {
+    const n = s.dates.length;
+    if (!n) return null;
+    const u = avg(s.totU), t3 = avg(s.totT3), t2 = avg(s.totT2), t1 = avg(s.totT1);
+    const idx = t3+t2+t1>0 ? Math.round((t3*3+t2*2+t1*1)/(t3+t2+t1)*10)/10 : 0;
+    const color = DAY_COLOR[s.label] || '#374151';
+    const barW = Math.round(u/maxU*100);
+    const resCells = RESULT_KEYS.map(k => {
+      const v = avg(s.results[k]);
+      return `<td style="text-align:center;padding:.6rem .4rem;font-family:DM Mono,monospace;font-size:.9rem;font-weight:700;color:${v>0?'#059669':'#c0c4ce'}">${v>0?v:'-'}</td>`;
+    }).join('');
+    const t3p=pct(t3,u), t2p=pct(t2,u), t1p=pct(t1,u);
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:.8rem 1rem;white-space:nowrap;vertical-align:middle">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${color}18;color:${color};font-size:.85rem;font-weight:800">${s.label}</span>
+          <span style="font-size:.75rem;color:var(--muted)">${n}일 데이터</span>
+        </div>
+      </td>
+      <td style="padding:.6rem .5rem">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;min-width:60px">
+            <div style="height:100%;width:${barW}%;background:${color};border-radius:4px"></div>
+          </div>
+          <span style="font-family:DM Mono,monospace;font-weight:900;color:${color};font-size:1rem;min-width:36px">${u}</span>
+        </div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:2px;margin-left:0">
+          <span style="color:#dc2626">총력 ${t3p}%</span>
+          <span style="color:#d97706;margin:0 4px">주력 ${t2p}%</span>
+          <span style="color:#059669">활력 ${t1p}%</span>
+          <span style="color:#7c3aed;margin-left:4px">지수 ${idx}</span>
+        </div>
+        <div style="display:flex;height:4px;border-radius:2px;overflow:hidden;gap:1px;margin-top:3px;width:${barW}%;min-width:${barW?20:0}px">
+          <div style="flex:${t3};background:#dc2626"></div>
+          <div style="flex:${t2};background:#d97706"></div>
+          <div style="flex:${t1};background:#059669"></div>
+        </div>
+      </td>
+      ${resCells}
+    </tr>`;
+  }).filter(Boolean);
+
+  // 날짜 목록 (요일별 상세)
+  const dateListSection = Object.entries(dayStats).map(([dow, s]) => {
+    if (!s.dates.length) return '';
+    const color = DAY_COLOR[s.label] || '#374151';
+    const dateChips = s.dates.map((d,i) => {
+      const totU = s.totU[i];
+      return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px 10px;font-size:.78rem;font-family:DM Mono,monospace;cursor:pointer" onclick="openDayModal('${d}',null)">${d.slice(5)} <span style="color:${color};font-weight:700">${totU}명</span></span>`;
+    }).join('');
+    return `<div style="margin-bottom:.8rem">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${color}18;color:${color};font-size:.78rem;font-weight:800;margin-right:6px">${s.label}</span>
+      <span style="font-size:.75rem;color:var(--muted);margin-right:8px">${s.dates.length}일</span>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">${dateChips}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  el.innerHTML = `
+    <div style="overflow-x:auto;margin-bottom:1.5rem">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:.7rem 1rem;text-align:left;font-size:.75rem;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase">요일</th>
+          <th style="padding:.7rem .5rem;text-align:left;font-size:.75rem;color:#2563eb;font-weight:700;min-width:160px">실질인원 (평균)</th>
+          ${RESULT_KEYS.map(k=>`<th style="padding:.7rem .4rem;text-align:center;font-size:.72rem;color:var(--muted);font-weight:700">${k.replace('신규찾기','찾기').replace('센터확답','확답').replace('복음방','복방')}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>
+    <div class="result-section">
+      <div class="section-title">요일별 날짜 목록</div>
+      ${dateListSection}
+    </div>`;
+}
+
 function renderTrend(period){
   const el=document.getElementById('trend-content');
   if(!el)return;
   if(!history.length){el.innerHTML=`<div style="text-align:center;padding:4rem;color:var(--muted);font-size:.9rem">아직 누적 데이터가 없어요.<br>보고서를 입력하면 추이가 나타납니다.</div>`;return;}
+  if(period==='dayofweek'){renderDayOfWeekView();return;}
+  if(period==='dayofweek'){renderDayOfWeekView();return;}
 
   // 그룹핑
   const grouped={};
@@ -1678,7 +1895,9 @@ function renderDailyTable(){
     const total=ALL_DEPTS.reduce((s,d)=>s+(row[d]?.unique||0),0);
     const prevTotal=prev?ALL_DEPTS.reduce((s,d)=>s+(prev[d]?.unique||0),0):null;
     const totalDelta=prevTotal!==null?total-prevTotal:null;
-
+    const rowResults=RESULT_KEYS.reduce((o,k)=>{o[k]=ALL_DEPTS.reduce((s,d)=>s+getRC(row[d]?.results,k),0);return o;},{});
+    // 전도결과 합산
+    
     const deptCells=ALL_DEPTS.map(dept=>{
       if(deptFilter!=='all'&&deptFilter!==dept)return'';
       const v=row[dept];
@@ -1699,7 +1918,7 @@ function renderDailyTable(){
     const deltaHtml=totalDelta===null?'':totalDelta>0?`<span class="delta-up"> ▲${totalDelta}</span>`:totalDelta<0?`<span class="delta-down"> ▼${Math.abs(totalDelta)}</span>`:`<span class="delta-same"> →</span>`;
 
     return`<tr class="daily-row" onclick="openDayModal('${row.date}',null)">
-      <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">${row.date}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--text);white-space:nowrap">${row.date}${dayBadge(row.date)}</td>
       ${deptCells}
       <td style="font-weight:800;color:var(--accent)">${total}명${deltaHtml}</td>
     </tr>`;
@@ -1960,14 +2179,356 @@ function closeModal(e){if(e.target===document.getElementById('modal-overlay'))cl
 function closeModalDirect(){document.getElementById('modal-overlay').classList.remove('open');}
 
 // 초기 렌더 (공유 데이터 로드 후)
+// ─────────────────────────────────────────────────
+// 토스트 알림
+// ─────────────────────────────────────────────────
+function showToast(msg, type='success', duration=3000) {
+  let t = document.getElementById('toast-container');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast-container';
+    t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;';
+    document.body.appendChild(t);
+  }
+  const toast = document.createElement('div');
+  const bg = type==='error'?'#dc2626':type==='warn'?'#d97706':'#059669';
+  toast.style.cssText = `background:${bg};color:#fff;padding:.7rem 1.3rem;border-radius:12px;font-size:.88rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.15);opacity:0;transition:opacity .2s;max-width:320px;`;
+  toast.textContent = msg;
+  t.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity='1'; });
+  setTimeout(() => { toast.style.opacity='0'; setTimeout(()=>toast.remove(), 200); }, duration);
+}
+
+// ─────────────────────────────────────────────────
+// 수정 모달 (특정 날짜·부서 데이터 삭제)
+// ─────────────────────────────────────────────────
+function openEditModal(date) {
+  const row = history.find(r => r.date === date);
+  if (!row) return;
+  document.getElementById('modal-title').textContent = `${date} 데이터 관리`;
+  const deptItems = ALL_DEPTS.map(dept => {
+    const v = row[dept];
+    const has = v && typeof v === 'object' && v.unique > 0;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border)">
+      <div>
+        <span style="font-weight:700;color:${DEPT_RAW[dept]}">${dept}</span>
+        ${has ? `<span style="margin-left:.5rem;font-size:.8rem;color:var(--muted)">실질 ${v.unique}명 · 총력${v.t3||0} 주력${v.t2||0} 활력${v.t1||0}</span>` : '<span style="margin-left:.5rem;font-size:.8rem;color:var(--muted)">데이터 없음</span>'}
+      </div>
+      ${has ? `<button onclick="deleteDeptData('${date}','${dept}')" style="padding:4px 10px;border-radius:8px;border:1px solid #fca5a5;background:#fff0f0;color:#dc2626;font-size:.78rem;cursor:pointer">삭제</button>` : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom:1rem;padding:.8rem 1rem;background:#fff7ed;border-radius:10px;border:1px solid #fed7aa;font-size:.82rem;color:#92400e">
+      ⚠️ 부서 데이터를 삭제하면 복구할 수 없어요. 신중하게 사용하세요.
+    </div>
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">${deptItems}</div>
+    <div style="margin-top:1rem;text-align:right">
+      <button onclick="deleteDate('${date}')" style="padding:.5rem 1.2rem;border-radius:10px;border:1px solid #fca5a5;background:#dc2626;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">🗑️ 이 날짜 전체 삭제</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function deleteDeptData(date, dept) {
+  if (!confirm(`${date} ${dept} 데이터를 삭제할까요?`)) return;
+  const idx = history.findIndex(r => r.date === date);
+  if (idx === -1) return;
+  delete history[idx][dept];
+  saveSharedData();
+  showToast(`${dept} 데이터 삭제됨`);
+  closeModalDirect();
+  renderDailyTable();
+}
+
+function deleteDate(date) {
+  if (!confirm(`${date} 전체 데이터를 삭제할까요?`)) return;
+  history = history.filter(r => r.date !== date);
+  saveSharedData();
+  showToast(`${date} 삭제됨`);
+  closeModalDirect();
+  renderDailyTable();
+}
+
+// ─────────────────────────────────────────────────
+// 목표치 설정 & 달성률 (추가1번)
+// ─────────────────────────────────────────────────
+let goals = {};
+try { goals = JSON.parse(localStorage.getItem('goals')||'{}'); } catch(e) {}
+const DEFAULT_GOAL_RATE = 30; // 재적 대비 기본 목표 %
+
+function saveGoals() {
+  localStorage.setItem('goals', JSON.stringify(goals));
+}
+
+function getGoalRate(dept) {
+  return goals[dept] || DEFAULT_GOAL_RATE;
+}
+
+function goalStatus(rate, goal) {
+  if (rate >= goal) return { color:'#059669', label:'달성', icon:'✅' };
+  if (rate >= goal * 0.7) return { color:'#d97706', label:'근접', icon:'🔶' };
+  return { color:'#dc2626', label:'미달', icon:'❌' };
+}
+
+function openGoalModal() {
+  document.getElementById('modal-title').textContent = '목표 활동률 설정';
+  const rows = ALL_DEPTS.map(dept => {
+    const g = getGoalRate(dept);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border)">
+      <span style="font-weight:700;color:${DEPT_RAW[dept]}">${dept}</span>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <input type="number" id="goal-${dept}" value="${g}" min="1" max="100"
+          style="width:60px;text-align:center;padding:.4rem;border-radius:8px;border:1.5px solid var(--border);font-size:.9rem;font-weight:700;color:${DEPT_RAW[dept]}">
+        <span style="color:var(--muted);font-size:.9rem">%</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('modal-body').innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1rem">${rows}</div>
+    <div style="text-align:right">
+      <button onclick="applyGoals()" style="padding:.6rem 1.4rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">저장</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function applyGoals() {
+  ALL_DEPTS.forEach(dept => {
+    const el = document.getElementById('goal-' + dept);
+    if (el) goals[dept] = parseInt(el.value) || DEFAULT_GOAL_RATE;
+  });
+  saveGoals();
+  showToast('목표 활동률 저장됨');
+  closeModalDirect();
+  if (currentMainTab === 'today') renderToday();
+}
+
+// ─────────────────────────────────────────────────
+// 주간 보고서 자동 생성 (추가2번)
+// ─────────────────────────────────────────────────
+function openWeeklyReport() {
+  // 최근 7일 데이터 집계
+  const recent = [...history].sort((a,b)=>a.date<b.date?1:-1).slice(0,7);
+  if (!recent.length) { showToast('데이터가 없어요','warn'); return; }
+
+  const startDate = recent[recent.length-1].date;
+  const endDate = recent[0].date;
+
+  // 일별 합산
+  const totals = recent.map(row => ({
+    date: row.date,
+    u: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.unique||0),0),
+    t3: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t3||0),0),
+    t2: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t2||0),0),
+    t1: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t1||0),0),
+    results: RESULT_KEYS.reduce((o,k)=>{o[k]=ALL_DEPTS.reduce((s,d)=>s+getRC(row[d]?.results,k),0);return o;},{})
+  }));
+
+  const avgU = Math.round(totals.reduce((s,r)=>s+r.u,0)/totals.length);
+  const maxU = totals.reduce((a,b)=>b.u>a.u?b:a);
+  const minU = totals.filter(r=>r.u>0).reduce((a,b)=>b.u<a.u?b:a, {u:9999,date:''});
+  const totRes = RESULT_KEYS.reduce((o,k)=>{o[k]=totals.reduce((s,r)=>s+r.results[k],0);return o;},{});
+
+  const deptSummary = ALL_DEPTS.map(dept => {
+    const rows = recent.filter(row=>row[dept]&&row[dept].unique>0);
+    if (!rows.length) return `• ${dept}: 보고 없음`;
+    const avg = Math.round(rows.reduce((s,r)=>s+(r[dept].unique||0),0)/rows.length);
+    const rejeok = rows[0][dept].재적||0;
+    return `• ${dept}: 평균 ${avg}명 (재적대비 ${pct(avg,rejeok)}%) / ${rows.length}일 보고`;
+  }).join('\n');
+
+  const report = `📊 전도활동 주간보고 (${startDate} ~ ${endDate})
+━━━━━━━━━━━━━━━━━━━━━━━━
+📈 교회 전체
+• 일평균 실질인원: ${avgU}명
+• 최고: ${maxU.date} ${maxU.u}명
+• 최저: ${minU.date} ${minU.u}명
+
+📋 부서별 평균
+${deptSummary}
+
+📶 전도결과 합계 (${totals.length}일)
+• 신규찾기: ${totRes['신규찾기']}명
+• 연결: ${totRes['연결']}명
+• 육따: ${totRes['육따']}명
+• 영따: ${totRes['영따']}명
+• 복음방: ${totRes['복음방']}명
+• 센터확답: ${totRes['센터확답']}명
+━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+  document.getElementById('modal-title').textContent = '주간 보고서';
+  document.getElementById('modal-body').innerHTML = `
+    <textarea id="weekly-report-text" readonly style="width:100%;height:320px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:1rem;font-family:'DM Mono',monospace;font-size:.82rem;line-height:1.9;resize:none;color:var(--text)">${report}</textarea>
+    <div style="margin-top:.8rem;display:flex;gap:.7rem;justify-content:flex-end">
+      <button onclick="navigator.clipboard.writeText(document.getElementById('weekly-report-text').value).then(()=>showToast('복사됨! 텔레그램에 붙여넣으세요'))" style="padding:.6rem 1.4rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">📋 텔레그램 복사</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+// ─────────────────────────────────────────────────
+// 사명자 개인 추적 (추가3번)
+// ─────────────────────────────────────────────────
+function openMemberSearch() {
+  document.getElementById('modal-title').textContent = '사명자 개인 추적';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;gap:.6rem;margin-bottom:1rem">
+      <input type="text" id="member-search-input" placeholder="이름 입력 (예: 이길봉)"
+        style="flex:1;padding:.6rem 1rem;border-radius:10px;border:1.5px solid var(--border);font-size:.9rem;font-family:inherit;outline:none"
+        onkeydown="if(event.key==='Enter')searchMember()">
+      <button onclick="searchMember()" style="padding:.6rem 1.2rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">검색</button>
+    </div>
+    <div id="member-result"></div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('member-search-input')?.focus(), 100);
+}
+
+function searchMember() {
+  const name = (document.getElementById('member-search-input')?.value||'').trim();
+  const el = document.getElementById('member-result');
+  if (!name) { el.innerHTML='<div style="color:var(--muted);text-align:center;padding:2rem">이름을 입력하세요</div>'; return; }
+
+  const GRP_SHORT = {센터관리:'센',전도활동:'전',전도단:'단'};
+  const TIER_MAP = {총력:{color:'#dc2626',bg:'#fef2f2'},주력:{color:'#d97706',bg:'#fffbeb'},활력:{color:'#059669',bg:'#ecfdf5'}};
+
+  const rows = [];
+  [...history].sort((a,b)=>a.date<b.date?1:-1).forEach(row => {
+    ALL_DEPTS.forEach(dept => {
+      const v = row[dept];
+      if (!v || typeof v !== 'object') return;
+      const inGroups = ['센터관리','전도활동','전도단'].filter(g=>(v.groups?.[g]||[]).includes(name));
+      if (!inGroups.length) return;
+      const tier = (v.t3names||[]).includes(name)?'총력':(v.t2names||[]).includes(name)?'주력':(v.t1names||[]).includes(name)?'활력':null;
+      rows.push({ date:row.date, dept, inGroups, tier });
+    });
+  });
+
+  if (!rows.length) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted)">「${name}」 님의 기록이 없어요</div>`;
+    return;
+  }
+
+  // 통계
+  const totalDays = rows.length;
+  const tierCounts = {총력:0,주력:0,활력:0};
+  rows.forEach(r => { if(r.tier) tierCounts[r.tier]++; });
+  const deptCounts = {};
+  rows.forEach(r => { deptCounts[r.dept]=(deptCounts[r.dept]||0)+1; });
+
+  const statHtml = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem;margin-bottom:1rem">
+      <div style="background:#eff4ff;border-radius:10px;padding:.7rem;text-align:center;border-left:3px solid #2563eb">
+        <div style="font-size:.7rem;color:var(--muted)">총 활동일</div>
+        <div style="font-size:1.4rem;font-weight:900;color:#2563eb">${totalDays}일</div>
+      </div>
+      <div style="background:#fef2f2;border-radius:10px;padding:.7rem;text-align:center;border-left:3px solid #dc2626">
+        <div style="font-size:.7rem;color:var(--muted)">총력</div>
+        <div style="font-size:1.4rem;font-weight:900;color:#dc2626">${tierCounts.총력}일</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:10px;padding:.7rem;text-align:center;border-left:3px solid #d97706">
+        <div style="font-size:.7rem;color:var(--muted)">주력</div>
+        <div style="font-size:1.4rem;font-weight:900;color:#d97706">${tierCounts.주력}일</div>
+      </div>
+      <div style="background:#ecfdf5;border-radius:10px;padding:.7rem;text-align:center;border-left:3px solid #059669">
+        <div style="font-size:.7rem;color:var(--muted)">활력</div>
+        <div style="font-size:1.4rem;font-weight:900;color:#059669">${tierCounts.활력}일</div>
+      </div>
+    </div>`;
+
+  const timelineHtml = rows.map(r => {
+    const t = r.tier ? TIER_MAP[r.tier] : {color:'var(--muted)',bg:'var(--surface2)'};
+    const grpTags = r.inGroups.map(g=>`<span style="font-size:.65rem;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:1px 5px">${GRP_SHORT[g]}</span>`).join(' ');
+    return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-bottom:1px solid var(--border)">
+      <span style="font-family:DM Mono,monospace;font-size:.78rem;color:var(--muted);min-width:80px">${r.date}</span>
+      <span style="font-weight:700;font-size:.82rem;color:${DEPT_RAW[r.dept]}">${r.dept}</span>
+      ${r.tier ? `<span style="font-size:.72rem;font-weight:700;color:${t.color};background:${t.bg};padding:2px 7px;border-radius:6px">${r.tier}</span>` : ''}
+      <span style="margin-left:auto">${grpTags}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="font-size:1rem;font-weight:800;color:var(--text);margin-bottom:.8rem">「${name}」 활동 이력</div>
+    ${statHtml}
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:300px;overflow-y:auto">
+      ${timelineHtml}
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────
+// 인도자별 결실 현황 (추가4번)
+// ─────────────────────────────────────────────────
+function openLeaderStats() {
+  document.getElementById('modal-title').textContent = '인도자별 결실 현황';
+
+  // history 전체에서 results.names 파싱
+  const leaderMap = {}; // {인도자명: {찾기:0, 연결:0, ...}}
+  const KEY_LABEL = {신규찾기:'찾기',연결:'연결',육따:'육따',영따:'영따',복음방:'복방',센터확답:'확답'};
+
+  history.forEach(row => {
+    ALL_DEPTS.forEach(dept => {
+      const v = row[dept];
+      if (!v || typeof v !== 'object') return;
+      RESULT_KEYS.forEach(k => {
+        const res = v.results?.[k];
+        const names = res?.names || [];
+        names.forEach(nameWithLeader => {
+          // "이름(인도자)" 형태 파싱
+          const m = nameWithLeader.match(/\(([^)]+)\)/);
+          if (!m) return;
+          const leader = m[1].trim();
+          if (!leaderMap[leader]) leaderMap[leader] = {total:0};
+          leaderMap[leader][k] = (leaderMap[leader][k]||0) + 1;
+          leaderMap[leader].total++;
+        });
+      });
+    });
+  });
+
+  const sorted = Object.entries(leaderMap).sort((a,b)=>b[1].total-a[1].total);
+  if (!sorted.length) {
+    document.getElementById('modal-body').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--muted)">아직 인도자 데이터가 없어요<br><small>결과보고에 (인도자) 형태로 기재된 경우만 집계됩니다</small></div>';
+    document.getElementById('modal-overlay').classList.add('open');
+    return;
+  }
+
+  const maxTotal = sorted[0][1].total;
+  const rows = sorted.map(([leader, counts]) => {
+    const barW = Math.round(counts.total/maxTotal*100);
+    const resCells = RESULT_KEYS.map(k=>`<td style="text-align:center;padding:.5rem .3rem;font-family:DM Mono,monospace;font-size:.85rem;font-weight:700;color:${counts[k]?'#059669':'#d1d5db'}">${counts[k]||'-'}</td>`).join('');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:.6rem 1rem;font-weight:700;white-space:nowrap">
+        ${leader}
+        <div style="height:4px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:var(--accent);border-radius:2px"></div>
+        </div>
+      </td>
+      <td style="text-align:center;padding:.5rem .3rem;font-family:DM Mono,monospace;font-size:1rem;font-weight:900;color:var(--accent)">${counts.total}</td>
+      ${resCells}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('modal-body').innerHTML = `
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:.8rem">📌 결과보고에서 (인도자) 형태로 기재된 데이터를 집계합니다</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:500px">
+      <thead><tr style="border-bottom:2px solid var(--border)">
+        <th style="padding:.6rem 1rem;text-align:left;font-size:.72rem;color:var(--muted);font-weight:700">인도자</th>
+        <th style="text-align:center;padding:.6rem .3rem;font-size:.72rem;color:var(--accent);font-weight:700">총계</th>
+        ${RESULT_KEYS.map(k=>`<th style="text-align:center;padding:.6rem .3rem;font-size:.68rem;color:var(--muted);font-weight:700">${KEY_LABEL[k]}</th>`).join('')}
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+
 (async function init() {
   await loadSharedData();
   populateCompareDates();
   if (currentMainTab === 'today') renderToday();
   if (currentMainTab === 'trend') renderTrend(currentPeriod);
   if (currentMainTab === 'daily') renderDailyTable();
-  const syncEl = document.getElementById('sync-status');
-  if (syncEl) syncEl.innerHTML = '✅ 공유 데이터 연결됨';
+  // 날짜 피커 초기값
+  const el = document.getElementById('report-date');
+  if (el && !el.value) el.value = fmtDate(now);
 })();
 
 
