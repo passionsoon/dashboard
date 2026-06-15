@@ -1567,9 +1567,9 @@ function renderProcessView(totalResults) {
     // 신규찾기: history에서 누적 합계, 나머지: 현재 보유
     var deptHistSum신규 = history.reduce(function(s,r){ return s + getRC(r[dept] && r[dept].results, '신규찾기'); }, 0);
     var cells = RESULT_KEYS.map(function(k, i) {
-      var val = k === '신규찾기'
-        ? deptHistSum신규
-        : (d ? getRC(d.results, k) : 0);
+      var val = (i === 0)
+        ? deptHistSum신규           // 찾기: 누적 합계
+        : (d ? getRC(d.results, k) : 0); // 연결~센터: 독립 보유 인원
       var prevVal = prevDeptRow && typeof prevDeptRow === 'object' ? getRC(prevDeptRow.results, k) : null;
       return stepCell(val, prevVal, STEP_COLORS[i], STEP_BG[i], STEP_LABELS[i], i, dept) + (i < RESULT_KEYS.length-1 ? arrowCell() : '');
     }).join('');
@@ -1588,19 +1588,9 @@ function renderProcessView(totalResults) {
 
   // 병목 분석: 직전 단계 대비 가장 많이 떨어진 구간
   var vals = RESULT_KEYS.map(function(k){ return totalResults[k]||0; });
-  var bottleneck = -1, maxDrop = 0;
-  for (var i=1; i<vals.length; i++) {
-    if (vals[i-1] > 0) {
-      var drop = vals[i-1] - vals[i];
-      if (drop > maxDrop) { maxDrop = drop; bottleneck = i; }
-    }
-  }
+  // bottleneck은 effectiveResults 기반으로 아래에서 계산
 
-  // 순수 단계별 인원 (상위 단계 차감)
-  var rawArr = RESULT_KEYS.map(function(k){ return totalResults[k]||0; });
-  var netArr = calcNetStages(rawArr);
-
-  // 역산 목표
+  // 역산 목표 (rawArr는 effectiveResults 선언 후 아래에서 계산)
   var pg = processGoals || {};
   var pgRates = pg.rates || DEFAULT_RATES;
   var pgFinal = pg.finalGoal || 0;
@@ -1628,9 +1618,40 @@ function renderProcessView(totalResults) {
     }
   });
 
+  // effectiveResults 기반 병목 분석
+  var rawArr = RESULT_KEYS.map(function(k){ return effectiveResults[k]||0; });
+  var bottleneck = -1, maxDrop = 0;
+  for (var bi = 1; bi < rawArr.length; bi++) {
+    if (rawArr[bi-1] > 0) {
+      var drop = rawArr[bi-1] - rawArr[bi];
+      if (drop > maxDrop) { maxDrop = drop; bottleneck = bi; }
+    }
+  }
+
+  // effectiveResults 기반 rawArr + 병목 분석
+  var rawArr = RESULT_KEYS.map(function(k){ return effectiveResults[k]||0; });
+  var bottleneck2 = -1, maxDrop2 = 0;
+  for (var bi = 1; bi < rawArr.length; bi++) {
+    if (rawArr[bi-1] > 0) {
+      var bdrop = rawArr[bi-1] - rawArr[bi];
+      if (bdrop > maxDrop2) { maxDrop2 = bdrop; bottleneck2 = bi; }
+    }
+  }
+  var bottleneck = bottleneck2, maxDrop = maxDrop2;
+
+    // rawArr + 병목 분석 (effectiveResults 기반)
+  var rawArr = RESULT_KEYS.map(function(k){ return effectiveResults[k]||0; });
+  var bottleneck = -1, maxDrop = 0;
+  for (var bi2 = 1; bi2 < rawArr.length; bi2++) {
+    if (rawArr[bi2-1] > 0) {
+      var bdrop2 = rawArr[bi2-1] - rawArr[bi2];
+      if (bdrop2 > maxDrop) { maxDrop = bdrop2; bottleneck = bi2; }
+    }
+  }
+
   var totalCells = RESULT_KEYS.map(function(k, i) {
-    var val = effectiveResults[k];
-    var netVal = netArr[i];
+    var val = effectiveResults[k]; // 각 단계 독립 보유 인원
+    var netVal = val;
     var prevVal = prevTotalRes ? prevTotalRes[k] : null;
     var isBottleneck = i === bottleneck && maxDrop > 0;
     var reqVal = reqArr ? reqArr[i] : null;
@@ -1655,10 +1676,7 @@ function renderProcessView(totalResults) {
         + '</div>'
       + '</div>';
     }
-    // 신규찾기 제외하고 차감값 표시
-    var netLabel = (i > 0 && netVal !== val)
-      ? '<div style="font-size:.6rem;color:#7c3aed;font-weight:700">순 '+netVal+'</div>'
-      : '';
+    var netLabel = ''; // val 자체가 차감값이므로 별도 표시 불필요
 
     return '<td style="padding:.5rem .3rem;text-align:center;min-width:70px">'
       + '<div style="background:'+(active?bg:'#f9fafb')+';border:2px solid '+(isBottleneck?'#dc2626':active?color+'55':'#e5e7eb')+';border-radius:10px;padding:.6rem .3rem;display:inline-block;width:100%;box-sizing:border-box;position:relative">'
@@ -2405,16 +2423,7 @@ function calcRequiredByStage(finalGoal, rates) {
 // 영따 실인원 = 영따 - 복음방 - 센터확답
 // 복음방 실인원 = 복음방 - 센터확답
 // 센터확답 = 그대로
-function calcNetStages(rawCounts) {
-  // rawCounts: [신규찾기, 연결, 육따, 영따, 복음방, 센터확답]
-  const net = [...rawCounts];
-  for (let i = 1; i < 5; i++) {
-    let upper = 0;
-    for (let j = i+1; j < 6; j++) upper += rawCounts[j];
-    net[i] = Math.max(0, rawCounts[i] - upper);
-  }
-  return net;
-}
+// calcNetStages 제거 - 각 단계 독립 표시
 const DEFAULT_GOAL_RATE = 30; // 재적 대비 기본 목표 %
 
 function saveGoals() {
