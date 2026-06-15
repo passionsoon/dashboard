@@ -1558,15 +1558,28 @@ function renderProcessView(totalResults) {
 
   // 부서별 행
   var deptRows = ALL_DEPTS.map(function(dept) {
-    var d = currentViewData[dept];
+    // currentViewData 없으면 deptData(오늘 입력) 폴백
+    var d = (currentViewData && currentViewData[dept] && currentViewData[dept].unique)
+      ? currentViewData[dept]
+      : deptData[dept];
+    // deptData의 results는 {count, names} 형태일 수 있으므로 정규화
+    var dNorm = d ? {
+      unique: d.unique || 0,
+      재적: d.재적 || 0,
+      results: d.results ? RESULT_KEYS.reduce(function(o,k){
+        var v = d.results[k];
+        o[k] = typeof v === 'object' ? (v.count || 0) : (v || 0);
+        return o;
+      }, {}) : {}
+    } : null;
     var color = DEPT_RAW[dept];
     var prevDeptRow = prevRow ? prevRow[dept] : null;
-    // 신규찾기: history에서 누적 합계, 나머지: 현재 보유(currentViewData)
+    // 신규찾기: history에서 누적 합계, 나머지: 현재 보유
     var deptHistSum신규 = history.reduce(function(s,r){ return s + getRC(r[dept] && r[dept].results, '신규찾기'); }, 0);
     var cells = RESULT_KEYS.map(function(k, i) {
       var val = k === '신규찾기'
         ? deptHistSum신규
-        : (d ? getRC(d.results, k) : 0);
+        : (dNorm ? (dNorm.results[k] || 0) : 0);
       var prevVal = prevDeptRow && typeof prevDeptRow === 'object' ? getRC(prevDeptRow.results, k) : null;
       return stepCell(val, prevVal, STEP_COLORS[i], STEP_BG[i], STEP_LABELS[i], i, dept) + (i < RESULT_KEYS.length-1 ? arrowCell() : '');
     }).join('');
@@ -1608,8 +1621,25 @@ function renderProcessView(totalResults) {
     return s + ALL_DEPTS.reduce(function(ss,d){ return ss + getRC(r[d] && r[d].results, '신규찾기'); }, 0);
   }, 0);
 
+  // totalResults도 currentViewData 없으면 deptData 폴백
+  var effectiveResults = {};
+  RESULT_KEYS.forEach(function(k) {
+    if (k === '신규찾기') {
+      effectiveResults[k] = histSumShinGyu;
+    } else {
+      // currentViewData 합산
+      var cvSum = ALL_DEPTS.reduce(function(s,dept) {
+        var v = currentViewData[dept] || deptData[dept];
+        if (!v || !v.results) return s;
+        var rv = v.results[k];
+        return s + (typeof rv === 'object' ? (rv.count||0) : (rv||0));
+      }, 0);
+      effectiveResults[k] = cvSum || totalResults[k] || 0;
+    }
+  });
+
   var totalCells = RESULT_KEYS.map(function(k, i) {
-    var val = k === '신규찾기' ? histSumShinGyu : (totalResults[k] || 0);
+    var val = effectiveResults[k];
     var netVal = netArr[i];
     var prevVal = prevTotalRes ? prevTotalRes[k] : null;
     var isBottleneck = i === bottleneck && maxDrop > 0;
