@@ -1562,16 +1562,6 @@ function renderProcessView(totalResults) {
     var d = (currentViewData && currentViewData[dept] && currentViewData[dept].unique)
       ? currentViewData[dept]
       : deptData[dept];
-    // deptData의 results는 {count, names} 형태일 수 있으므로 정규화
-    var dNorm = d ? {
-      unique: d.unique || 0,
-      재적: d.재적 || 0,
-      results: d.results ? RESULT_KEYS.reduce(function(o,k){
-        var v = d.results[k];
-        o[k] = typeof v === 'object' ? (v.count || 0) : (v || 0);
-        return o;
-      }, {}) : {}
-    } : null;
     var color = DEPT_RAW[dept];
     var prevDeptRow = prevRow ? prevRow[dept] : null;
     // 신규찾기: history에서 누적 합계, 나머지: 현재 보유
@@ -1579,7 +1569,7 @@ function renderProcessView(totalResults) {
     var cells = RESULT_KEYS.map(function(k, i) {
       var val = k === '신규찾기'
         ? deptHistSum신규
-        : (dNorm ? (dNorm.results[k] || 0) : 0);
+        : (d ? getRC(d.results, k) : 0);
       var prevVal = prevDeptRow && typeof prevDeptRow === 'object' ? getRC(prevDeptRow.results, k) : null;
       return stepCell(val, prevVal, STEP_COLORS[i], STEP_BG[i], STEP_LABELS[i], i, dept) + (i < RESULT_KEYS.length-1 ? arrowCell() : '');
     }).join('');
