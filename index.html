@@ -1048,7 +1048,7 @@ function renderToday(){
   RESULT_KEYS.forEach(k=>totalResults[k]=0);
   depts.forEach(d=>{
     const dd=viewData[d];
-    totalRejeok+=dd.재적||0; totalUnique+=dd.unique||0;
+    totalRejeok+=getRejeok(d, dd.재적||0); totalUnique+=dd.unique||0;
     totalT3+=Array.isArray(dd.t3)?dd.t3.length:(dd.t3||0);
     totalT2+=Array.isArray(dd.t2)?dd.t2.length:(dd.t2||0);
     totalT1+=Array.isArray(dd.t1)?dd.t1.length:(dd.t1||0);
@@ -1073,21 +1073,49 @@ function renderToday(){
         <div style="height:100%;width:${pct(t.n,totalUnique)}%;background:${t.c};border-radius:3px"></div>
       </div>
     </div>`).join('');
-  // 목표달성률 계산
+  // 이번 주 (월~일) 날짜 범위 계산
+  const today0 = new Date(fmtDate(now) + 'T00:00:00');
+  const weekStartDate = new Date(today0);
+  weekStartDate.setDate(today0.getDate() - today0.getDay()); // 일요일(0) 기준
+  const weekStartStr = fmtDate(weekStartDate);
+  const weekEndStr   = fmtDate(today0);
+
+  // 이번 주 history 행
+  const thisWeekRows = history.filter(r => r.date >= weekStartStr && r.date <= weekEndStr);
+
+  // 부서별 주간 일평균 계산
+  const deptWeekAvg = {};
+  ALL_DEPTS.forEach(dept => {
+    const rows = thisWeekRows.filter(r => r[dept] && typeof r[dept]==='object' && r[dept].unique > 0);
+    const dataRejeok = (viewData[dept] && viewData[dept].재적) || (rows[0] && rows[0][dept] && rows[0][dept].재적) || 0;
+    const rejeok = getRejeok(dept, dataRejeok);
+    const avgUnique = rows.length > 0 ? Math.round(rows.reduce((s,r)=>s+(r[dept].unique||0),0)/rows.length) : 0;
+    deptWeekAvg[dept] = { avgUnique, rejeok, days: rows.length, rate: pct(avgUnique, rejeok) };
+  });
+  const weekDaysCount = [...new Set(thisWeekRows.map(r=>r.date))].length;
+
+  // 목표달성률 카드 (주간 일평균 기준)
   const deptGoalCards = ALL_DEPTS.map(dept => {
-    const d = viewData[dept];
-    if (!d) return '';
-    const rate = pct(d.unique||0, d.재적||1);
+    const wa = deptWeekAvg[dept];
+    if (!wa || !wa.rejeok) return '';
     const goal = getGoalRate(dept);
-    const status = goalStatus(rate, goal);
-    const progress = Math.min(Math.round(rate/goal*100),100);
-    return `<div style="background:var(--surface2);border-radius:10px;padding:.6rem .8rem;border-left:3px solid ${status.color}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-size:.78rem;font-weight:700;color:${DEPT_RAW[dept]}">${dept}</span>
-        <span style="font-size:.72rem;color:${status.color};font-weight:700">${status.icon} ${rate}%/${goal}%</span>
+    const status = goalStatus(wa.rate, goal);
+    const progress = Math.min(Math.round(wa.rate/goal*100), 100);
+    return `<div style="background:var(--surface2);border-radius:10px;padding:.7rem .9rem;border-left:3px solid ${status.color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:.82rem;font-weight:800;color:${DEPT_RAW[dept]}">${dept}</span>
+        <span style="font-size:.75rem;color:${status.color};font-weight:800">${status.icon} ${wa.rate}%</span>
       </div>
-      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${progress}%;background:${status.color};border-radius:3px;transition:width .5s"></div>
+      <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-bottom:5px">
+        <span>주간 일평균 ${wa.avgUnique}명 / 재적 ${wa.rejeok}명</span>
+        <span>목표 ${goal}%</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:3px">
+        <div style="height:100%;width:${progress}%;background:${status.color};border-radius:3px;transition:width .6s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted)">
+        <span>${wa.days}일 보고됨 (${weekStartStr.slice(5)} ~ ${weekEndStr.slice(5)})</span>
+        <span style="color:${status.color};font-weight:700">${progress}% 달성</span>
       </div>
     </div>`;
   }).join('');
@@ -1133,7 +1161,7 @@ function renderToday(){
       <div class="dept-header"><div class="dept-name" style="color:${color}">${dept}</div>
       <div class="dept-badge" style="background:${bg};color:${color}">미입력</div></div>
       <div style="padding:2.5rem;text-align:center;color:var(--muted);font-size:.9rem">보고서를 입력해주세요</div></div>`;
-    const u=d.unique||0; const rate=pct(u,d.재적);
+    const u=d.unique||0; const rate=pct(u,getRejeok(dept,d.재적));
     // groups가 있으면 calcTiers, 없으면 t3names/t2names/t1names 사용
     const hasGroups = d.groups && (d.groups.센터관리||[]).length + (d.groups.전도활동||[]).length + (d.groups.전도단||[]).length > 0;
     let t3,t2,t1;
@@ -1482,18 +1510,45 @@ function renderProcessView(totalResults) {
   const STEP_COLORS = ['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'];
   const STEP_BG     = ['#eff4ff','#f5f3ff','#fffbeb','#f0f9ff','#ecfdf5','#fdf2f8'];
 
-  function stepCell(val, prev, color, bg, label) {
+  // 부서별 목표 역산
+  var pg2 = processGoals || {};
+  var pg2Rates = pg2.rates || DEFAULT_RATES;
+  var deptReqMap = {}; // {dept: [req0..5]}
+  ALL_DEPTS.forEach(function(dept) {
+    var dg = pg2.deptGoals && pg2.deptGoals[dept] ? pg2.deptGoals[dept] : 0;
+    deptReqMap[dept] = dg > 0 ? calcRequiredByStage(dg, pg2Rates) : null;
+  });
+
+  function stepCell(val, prev, color, bg, label, stepIdx, dept) {
     var diff = prev !== null ? val - prev : null;
     var diffHtml = diff === null ? ''
       : diff > 0 ? '<div style="font-size:.62rem;color:#059669;font-weight:700">▲'+diff+'</div>'
       : diff < 0 ? '<div style="font-size:.62rem;color:#dc2626;font-weight:700">▼'+Math.abs(diff)+'</div>'
       : '<div style="font-size:.62rem;color:#9ca3af">→</div>';
     var active = val > 0;
+    // 부서별 목표 게이지
+    var deptGoalBar = '';
+    if (dept && deptReqMap[dept] && stepIdx !== undefined) {
+      var reqV = deptReqMap[dept][stepIdx];
+      if (reqV > 0) {
+        var ap = Math.min(Math.round(val/reqV*100), 100);
+        var ac = ap>=100?'#059669':ap>=70?'#d97706':'#dc2626';
+        deptGoalBar = '<div style="margin-top:4px;border-top:1px solid #f0f0f0;padding-top:3px">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'
+            +'<span style="font-size:.55rem;color:var(--muted)">목표 '+reqV+'</span>'
+            +'<span style="font-size:.6rem;font-weight:800;color:'+ac+'">'+ap+'%</span>'
+          +'</div>'
+          +'<div style="height:3px;background:#e5e7eb;border-radius:2px;overflow:hidden">'
+            +'<div style="height:100%;width:'+ap+'%;background:'+ac+'"></div>'
+          +'</div>'
+        +'</div>';
+      }
+    }
     return '<td style="padding:.5rem .3rem;text-align:center;min-width:70px">'
       + '<div style="background:'+(active?bg:'#f9fafb')+';border:1.5px solid '+(active?color+'55':'#e5e7eb')+';border-radius:10px;padding:.5rem .3rem;display:inline-block;width:100%;box-sizing:border-box">'
       + '<div style="font-size:.6rem;color:'+(active?color:'#b0b7c3')+';font-weight:700;margin-bottom:2px">'+label+'</div>'
       + '<div style="font-size:1.4rem;font-weight:900;font-family:DM Mono,monospace;color:'+(active?color:'#c0c4ce')+';line-height:1.1">'+val+'</div>'
-      + diffHtml
+      + diffHtml + deptGoalBar
       + '</div></td>';
   }
 
@@ -1506,10 +1561,14 @@ function renderProcessView(totalResults) {
     var d = currentViewData[dept];
     var color = DEPT_RAW[dept];
     var prevDeptRow = prevRow ? prevRow[dept] : null;
+    // 신규찾기: history에서 누적 합계, 나머지: 현재 보유(currentViewData)
+    var deptHistSum신규 = history.reduce(function(s,r){ return s + getRC(r[dept] && r[dept].results, '신규찾기'); }, 0);
     var cells = RESULT_KEYS.map(function(k, i) {
-      var val = d ? getRC(d.results, k) : 0;
+      var val = k === '신규찾기'
+        ? deptHistSum신규
+        : (d ? getRC(d.results, k) : 0);
       var prevVal = prevDeptRow && typeof prevDeptRow === 'object' ? getRC(prevDeptRow.results, k) : null;
-      return stepCell(val, prevVal, STEP_COLORS[i], STEP_BG[i], STEP_LABELS[i]) + (i < RESULT_KEYS.length-1 ? arrowCell() : '');
+      return stepCell(val, prevVal, STEP_COLORS[i], STEP_BG[i], STEP_LABELS[i], i, dept) + (i < RESULT_KEYS.length-1 ? arrowCell() : '');
     }).join('');
     return '<tr>'
       + '<td style="padding:.6rem 1rem;font-weight:800;font-size:.95rem;color:'+color+';white-space:nowrap;vertical-align:middle">'+dept+'</td>'
@@ -1534,10 +1593,27 @@ function renderProcessView(totalResults) {
     }
   }
 
+  // 순수 단계별 인원 (상위 단계 차감)
+  var rawArr = RESULT_KEYS.map(function(k){ return totalResults[k]||0; });
+  var netArr = calcNetStages(rawArr);
+
+  // 역산 목표
+  var pg = processGoals || {};
+  var pgRates = pg.rates || DEFAULT_RATES;
+  var pgFinal = pg.finalGoal || 0;
+  var reqArr = pgFinal > 0 ? calcRequiredByStage(pgFinal, pgRates) : null;
+
+  // 신규찾기: history 전체 누적 합계
+  var histSumShinGyu = history.reduce(function(s,r){
+    return s + ALL_DEPTS.reduce(function(ss,d){ return ss + getRC(r[d] && r[d].results, '신규찾기'); }, 0);
+  }, 0);
+
   var totalCells = RESULT_KEYS.map(function(k, i) {
-    var val = totalResults[k] || 0;
+    var val = k === '신규찾기' ? histSumShinGyu : (totalResults[k] || 0);
+    var netVal = netArr[i];
     var prevVal = prevTotalRes ? prevTotalRes[k] : null;
     var isBottleneck = i === bottleneck && maxDrop > 0;
+    var reqVal = reqArr ? reqArr[i] : null;
     var diff = prevVal !== null ? val - prevVal : null;
     var diffHtml = diff === null ? ''
       : diff > 0 ? '<div style="font-size:.65rem;color:#059669;font-weight:700">▲'+diff+'</div>'
@@ -1545,12 +1621,32 @@ function renderProcessView(totalResults) {
       : '<div style="font-size:.65rem;color:#9ca3af">→</div>';
     var active = val > 0;
     var color = STEP_COLORS[i], bg = STEP_BG[i];
+    var goalBar = '';
+    if (reqVal && reqVal > 0) {
+      var achievePct = Math.min(Math.round(val/reqVal*100), 100);
+      var achieveColor = achievePct >= 100 ? '#059669' : achievePct >= 70 ? '#d97706' : '#dc2626';
+      goalBar = '<div style="margin-top:4px;border-top:1px solid #f0f0f0;padding-top:3px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'
+          + '<span style="font-size:.55rem;color:var(--muted)">목표 '+reqVal+'</span>'
+          + '<span style="font-size:.65rem;font-weight:800;color:'+achieveColor+'">'+achievePct+'%</span>'
+        + '</div>'
+        + '<div style="height:3px;background:#e5e7eb;border-radius:2px;overflow:hidden">'
+          + '<div style="height:100%;width:'+achievePct+'%;background:'+achieveColor+';border-radius:2px"></div>'
+        + '</div>'
+      + '</div>';
+    }
+    // 신규찾기 제외하고 차감값 표시
+    var netLabel = (i > 0 && netVal !== val)
+      ? '<div style="font-size:.6rem;color:#7c3aed;font-weight:700">순 '+netVal+'</div>'
+      : '';
+
     return '<td style="padding:.5rem .3rem;text-align:center;min-width:70px">'
       + '<div style="background:'+(active?bg:'#f9fafb')+';border:2px solid '+(isBottleneck?'#dc2626':active?color+'55':'#e5e7eb')+';border-radius:10px;padding:.6rem .3rem;display:inline-block;width:100%;box-sizing:border-box;position:relative">'
       + (isBottleneck ? '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;font-size:.55rem;font-weight:800;padding:1px 6px;border-radius:999px;white-space:nowrap">단절</div>' : '')
       + '<div style="font-size:.62rem;color:'+(active?color:'#b0b7c3')+';font-weight:700;margin-bottom:2px">'+STEP_LABELS[i]+'</div>'
       + '<div style="font-size:1.6rem;font-weight:900;font-family:DM Mono,monospace;color:'+(active?color:'#c0c4ce')+';line-height:1.1">'+val+'</div>'
-      + diffHtml + '</div></td>'
+      + netLabel + diffHtml + goalBar
+      + '</div></td>'
       + (i < RESULT_KEYS.length-1 ? '<td style="padding:0 2px;text-align:center;vertical-align:middle"><div style="color:'+(isBottleneck?'#dc2626':'#d1d5db')+';font-size:1.2rem;font-weight:900">→</div></td>' : '');
   }).join('');
 
@@ -2253,6 +2349,52 @@ function deleteDate(date) {
 // ─────────────────────────────────────────────────
 let goals = {};
 try { goals = JSON.parse(localStorage.getItem('goals')||'{}'); } catch(e) {}
+let rejeokOverride = {};
+try { rejeokOverride = JSON.parse(localStorage.getItem('rejeokOverride')||'{}'); } catch(e) {}
+function saveRejeok() { localStorage.setItem('rejeokOverride', JSON.stringify(rejeokOverride)); }
+function getRejeok(dept, dataRejeok) {
+  return rejeokOverride[dept] || dataRejeok || 0;
+}
+// 전도 단계별 목표 및 전환율
+// processGoals = { 센터확답: N, 전환율: { 연결→육따: 50, 육따→영따: 80, ... } }
+let processGoals = {};
+try { processGoals = JSON.parse(localStorage.getItem('processGoals')||'{}'); } catch(e) {}
+
+const FUNNEL_STEPS = ['신규찾기','연결','육따','영따','복음방','센터확답'];
+const FUNNEL_COLORS_ARR = ['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'];
+const DEFAULT_RATES = [20, 50, 80, 80, 70]; // 신규→연결 20%, 연결→육따 50% ...
+
+function saveProcessGoals() {
+  localStorage.setItem('processGoals', JSON.stringify(processGoals));
+}
+
+// 역산: 센터확답 목표 → 각 단계 필요 인원
+function calcRequiredByStage(finalGoal, rates) {
+  const req = [0,0,0,0,0,0];
+  req[5] = finalGoal; // 센터확답
+  for (let i = 4; i >= 0; i--) {
+    const rate = (rates[i] || DEFAULT_RATES[i]) / 100;
+    req[i] = rate > 0 ? Math.ceil(req[i+1] / rate) : 0;
+  }
+  return req;
+}
+
+// 순수 단계별 인원 (상위 단계 차감)
+// 연결 실인원 = 연결 - 육따 - 영따 - 복음방 - 센터확답
+// 육따 실인원 = 육따 - 영따 - 복음방 - 센터확답
+// 영따 실인원 = 영따 - 복음방 - 센터확답
+// 복음방 실인원 = 복음방 - 센터확답
+// 센터확답 = 그대로
+function calcNetStages(rawCounts) {
+  // rawCounts: [신규찾기, 연결, 육따, 영따, 복음방, 센터확답]
+  const net = [...rawCounts];
+  for (let i = 1; i < 5; i++) {
+    let upper = 0;
+    for (let j = i+1; j < 6; j++) upper += rawCounts[j];
+    net[i] = Math.max(0, rawCounts[i] - upper);
+  }
+  return net;
+}
 const DEFAULT_GOAL_RATE = 30; // 재적 대비 기본 목표 %
 
 function saveGoals() {
@@ -2270,33 +2412,126 @@ function goalStatus(rate, goal) {
 }
 
 function openGoalModal() {
-  document.getElementById('modal-title').textContent = '목표 활동률 설정';
-  const rows = ALL_DEPTS.map(dept => {
+  document.getElementById('modal-title').textContent = '목표 설정';
+
+  // 활동률 목표
+  const actRows = ALL_DEPTS.map(dept => {
     const g = getGoalRate(dept);
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border)">
-      <span style="font-weight:700;color:${DEPT_RAW[dept]}">${dept}</span>
-      <div style="display:flex;align-items:center;gap:.5rem">
-        <input type="number" id="goal-${dept}" value="${g}" min="1" max="100"
-          style="width:60px;text-align:center;padding:.4rem;border-radius:8px;border:1.5px solid var(--border);font-size:.9rem;font-weight:700;color:${DEPT_RAW[dept]}">
-        <span style="color:var(--muted);font-size:.9rem">%</span>
-      </div>
-    </div>`;
+    const rj = rejeokOverride[dept] || '';
+    const curRj = (viewData && viewData[dept] && viewData[dept].재적) || 0;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:1px solid var(--border);gap:.5rem">'
+      +'<span style="font-weight:800;color:'+DEPT_RAW[dept]+';min-width:52px">'+dept+'</span>'
+      +'<div style="display:flex;align-items:center;gap:.4rem;flex:1">'
+        +'<span style="font-size:.72rem;color:var(--muted)">재적</span>'
+        +'<input type="number" id="rejeok-'+dept+'" value="'+(rj||curRj)+'" min="1" placeholder="'+(curRj||'명')+'" style="width:58px;text-align:center;padding:.35rem;border-radius:8px;border:1.5px solid var(--border);font-size:.85rem;font-weight:700">'
+        +'<span style="font-size:.72rem;color:var(--muted)">명</span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:.4rem">'
+        +'<span style="font-size:.72rem;color:var(--muted)">목표</span>'
+        +'<input type="number" id="goal-'+dept+'" value="'+g+'" min="1" max="100" style="width:50px;text-align:center;padding:.35rem;border-radius:8px;border:1.5px solid var(--border);font-size:.85rem;font-weight:700;color:'+DEPT_RAW[dept]+'">'
+        +'<span style="color:var(--muted);font-size:.85rem">%</span>'
+      +'</div>'
+    +'</div>';
   }).join('');
-  document.getElementById('modal-body').innerHTML = `
-    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1rem">${rows}</div>
-    <div style="text-align:right">
-      <button onclick="applyGoals()" style="padding:.6rem 1.4rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">저장</button>
-    </div>`;
+
+  // 전도 단계 목표 (역산)
+  const finalGoal = processGoals.finalGoal || 10;
+  const rates = processGoals.rates || DEFAULT_RATES;
+  const req = calcRequiredByStage(finalGoal, rates);
+  const RATE_LABELS = ['신규→연결','연결→육따','육따→영따','영따→복방','복방→확답'];
+
+  const rateRows = RATE_LABELS.map((label, i) =>
+    '<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--border)">'
+      +'<span style="font-size:.8rem;color:var(--muted);min-width:90px">'+label+'</span>'
+      +'<input type="number" id="rate-'+i+'" value="'+(rates[i]||DEFAULT_RATES[i])+'" min="1" max="100" style="width:55px;text-align:center;padding:.35rem;border-radius:8px;border:1.5px solid var(--border);font-size:.85rem" oninput="previewFunnel()">'
+      +'<span style="font-size:.8rem;color:var(--muted)">%</span>'
+    +'</div>'
+  ).join('');
+
+  const stepReqRows = FUNNEL_STEPS.map((k,i) =>
+    '<div style="display:flex;justify-content:space-between;padding:.3rem 0;font-size:.82rem">'
+      +'<span style="color:'+FUNNEL_COLORS_ARR[i]+';font-weight:600">'+k+'</span>'
+      +'<span id="req-'+i+'" style="font-family:DM Mono,monospace;font-weight:700;color:'+FUNNEL_COLORS_ARR[i]+'">'+req[i]+'명</span>'
+    +'</div>'
+  ).join('');
+
+  document.getElementById('modal-body').innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">'
+
+    // 왼쪽: 활동률 목표
+    +'<div>'
+      +'<div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.6rem">활동률 목표 (재적 대비)</div>'
+      +'<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:.8rem">'+actRows+'</div>'
+    +'</div>'
+
+    // 오른쪽: 전도 단계 목표
+    +'<div>'
+      +'<div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.6rem">전도 단계 목표 (역산)</div>'
+      // 교회 전체 + 부서별 센터확답 목표
+      +'<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.8rem">'
+        // 교회 전체
+        +'<div style="display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;background:var(--accent-light);border-bottom:2px solid #bfdbfe">'
+          +'<span style="font-size:.82rem;font-weight:800;color:var(--accent);min-width:68px">⛪ 교회 전체</span>'
+          +'<input type="number" id="goal-final" value="'+finalGoal+'" min="0" style="width:52px;text-align:center;padding:.35rem;border-radius:8px;border:1.5px solid var(--accent);font-size:.95rem;font-weight:800;color:var(--accent)" oninput="previewFunnel()">'
+          +'<span style="color:var(--muted);font-size:.8rem">명/주</span>'
+        +'</div>'
+        // 부서별
+        +ALL_DEPTS.map(function(dept){
+          var dg = (processGoals.deptGoals && processGoals.deptGoals[dept]) || 0;
+          return '<div style="display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;border-bottom:1px solid var(--border)">'
+            +'<span style="font-size:.82rem;font-weight:700;color:'+DEPT_RAW[dept]+';min-width:68px">'+dept+'</span>'
+            +'<input type="number" id="goal-dept-'+dept+'" value="'+dg+'" min="0" style="width:52px;text-align:center;padding:.35rem;border-radius:8px;border:1.5px solid '+DEPT_RAW[dept]+'44;font-size:.9rem;font-weight:700;color:'+DEPT_RAW[dept]+'" oninput="previewFunnel()">'
+            +'<span style="color:var(--muted);font-size:.8rem">명/주</span>'
+          +'</div>';
+        }).join('')
+      +'</div>'
+      +'<div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.4rem">단계별 전환율</div>'
+      +'<div style="border:1px solid var(--border);border-radius:10px;padding:.6rem 1rem;margin-bottom:.8rem">'+rateRows+'</div>'
+      +'<div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.4rem">역산 필요 인원</div>'
+      +'<div id="funnel-preview" style="border:1px solid var(--border);border-radius:10px;padding:.6rem 1rem">'+stepReqRows+'</div>'
+    +'</div>'
+    +'</div>'
+
+    +'<div style="margin-top:1rem;text-align:right">'
+      +'<button onclick="applyGoals()" style="padding:.6rem 1.4rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">저장</button>'
+    +'</div>';
+
   document.getElementById('modal-overlay').classList.add('open');
+}
+
+function previewFunnel() {
+  const finalGoal = parseInt(document.getElementById('goal-final')?.value) || 0;
+  const rates = DEFAULT_RATES.map((d,i) => parseInt(document.getElementById('rate-'+i)?.value) || d);
+  const req = finalGoal > 0 ? calcRequiredByStage(finalGoal, rates) : [0,0,0,0,0,0];
+  FUNNEL_STEPS.forEach((k,i) => {
+    const el = document.getElementById('req-'+i);
+    if (el) el.textContent = req[i] > 0 ? req[i]+'명' : '-';
+  });
 }
 
 function applyGoals() {
   ALL_DEPTS.forEach(dept => {
-    const el = document.getElementById('goal-' + dept);
-    if (el) goals[dept] = parseInt(el.value) || DEFAULT_GOAL_RATE;
+    const gEl = document.getElementById('goal-' + dept);
+    if (gEl) goals[dept] = parseInt(gEl.value) || DEFAULT_GOAL_RATE;
+    const rEl = document.getElementById('rejeok-' + dept);
+    if (rEl && rEl.value) rejeokOverride[dept] = parseInt(rEl.value) || 0;
   });
   saveGoals();
-  showToast('목표 활동률 저장됨');
+  saveRejeok();
+  // 전도 단계 목표 저장
+  const finalGoalEl = document.getElementById('goal-final');
+  if (finalGoalEl) {
+    processGoals.finalGoal = parseInt(finalGoalEl.value) || 0;
+    processGoals.rates = DEFAULT_RATES.map((d,i) => parseInt(document.getElementById('rate-'+i)?.value) || d);
+    // 부서별 목표
+    processGoals.deptGoals = {};
+    ALL_DEPTS.forEach(dept => {
+      const el = document.getElementById('goal-dept-'+dept);
+      processGoals.deptGoals[dept] = parseInt(el?.value) || 0;
+    });
+    saveProcessGoals();
+  }
+  showToast('목표 저장됨');
   closeModalDirect();
   if (currentMainTab === 'today') renderToday();
 }
@@ -2304,62 +2539,206 @@ function applyGoals() {
 // ─────────────────────────────────────────────────
 // 주간 보고서 자동 생성 (추가2번)
 // ─────────────────────────────────────────────────
+function copyWeeklyReport() {
+  const el = document.getElementById('weekly-report-text');
+  if (!el) return;
+  navigator.clipboard.writeText(el.value).then(() => showToast('복사됨! 텔레그램에 붙여넣으세요'));
+}
+
 function openWeeklyReport() {
-  // 최근 7일 데이터 집계
-  const recent = [...history].sort((a,b)=>a.date<b.date?1:-1).slice(0,7);
+  const recent = [...history].sort((a,b)=>a.date<b.date?1:-1).slice(0,7).reverse(); // 날짜 오름차순
   if (!recent.length) { showToast('데이터가 없어요','warn'); return; }
 
-  const startDate = recent[recent.length-1].date;
-  const endDate = recent[0].date;
+  const startDate = recent[0].date;
+  const endDate   = recent[recent.length-1].date;
+  const latestRow = recent[recent.length-1];
 
-  // 일별 합산
+  // 일별 집계
   const totals = recent.map(row => ({
     date: row.date,
-    u: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.unique||0),0),
-    t3: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t3||0),0),
-    t2: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t2||0),0),
-    t1: ALL_DEPTS.reduce((s,d)=>s+(row[d]?.t1||0),0),
-    results: RESULT_KEYS.reduce((o,k)=>{o[k]=ALL_DEPTS.reduce((s,d)=>s+getRC(row[d]?.results,k),0);return o;},{})
+    u:  ALL_DEPTS.reduce((s,d)=>s+(row[d]?.unique||0),0),
+    t3: ALL_DEPTS.reduce((s,d)=>{const v=row[d];return s+(v?v.t3names?v.t3names.length:Array.isArray(v.t3)?v.t3.length:(v.t3||0):0);},0),
+    t2: ALL_DEPTS.reduce((s,d)=>{const v=row[d];return s+(v?v.t2names?v.t2names.length:Array.isArray(v.t2)?v.t2.length:(v.t2||0):0);},0),
+    t1: ALL_DEPTS.reduce((s,d)=>{const v=row[d];return s+(v?v.t1names?v.t1names.length:Array.isArray(v.t1)?v.t1.length:(v.t1||0):0);},0),
+    results: RESULT_KEYS.reduce((o,k)=>{o[k]=ALL_DEPTS.reduce((s,d)=>s+getRC(row[d]?.results,k),0);return o;},{}),
+    row: row
   }));
 
-  const avgU = Math.round(totals.reduce((s,r)=>s+r.u,0)/totals.length);
-  const maxU = totals.reduce((a,b)=>b.u>a.u?b:a);
-  const minU = totals.filter(r=>r.u>0).reduce((a,b)=>b.u<a.u?b:a, {u:9999,date:''});
-  const totRes = RESULT_KEYS.reduce((o,k)=>{o[k]=totals.reduce((s,r)=>s+r.results[k],0);return o;},{});
+  const avgU  = Math.round(totals.reduce((s,r)=>s+r.u,0)/totals.length);
+  const maxU  = totals.reduce((a,b)=>b.u>a.u?b:a);
+  const minU  = totals.filter(r=>r.u>0).reduce((a,b)=>b.u<a.u?b:a,{u:9999,date:'-'});
+  const totRej= ALL_DEPTS.reduce((s,d)=>s+(latestRow[d]?.재적||0),0);
 
-  const deptSummary = ALL_DEPTS.map(dept => {
-    const rows = recent.filter(row=>row[dept]&&row[dept].unique>0);
-    if (!rows.length) return `• ${dept}: 보고 없음`;
-    const avg = Math.round(rows.reduce((s,r)=>s+(r[dept].unique||0),0)/rows.length);
-    const rejeok = rows[0][dept].재적||0;
-    return `• ${dept}: 평균 ${avg}명 (재적대비 ${pct(avg,rejeok)}%) / ${rows.length}일 보고`;
-  }).join('\n');
+  // 전도결과: 신규찾기만 합계, 나머지는 최근값
+  const totRes = RESULT_KEYS.reduce((o,k)=>{
+    o[k] = k==='신규찾기'
+      ? totals.reduce((s,r)=>s+r.results[k],0)
+      : ALL_DEPTS.reduce((s,d)=>s+getRC(latestRow[d]?.results,k),0);
+    return o;
+  },{});
 
-  const report = `📊 전도활동 주간보고 (${startDate} ~ ${endDate})
-━━━━━━━━━━━━━━━━━━━━━━━━
-📈 교회 전체
-• 일평균 실질인원: ${avgU}명
-• 최고: ${maxU.date} ${maxU.u}명
-• 최저: ${minU.date} ${minU.u}명
+  // 활동력 지수
+  const totT3 = totals.reduce((s,r)=>s+r.t3,0)/totals.length;
+  const totT2 = totals.reduce((s,r)=>s+r.t2,0)/totals.length;
+  const totT1 = totals.reduce((s,r)=>s+r.t1,0)/totals.length;
+  const actIdx = totT3+totT2+totT1>0
+    ? Math.round((totT3*3+totT2*2+totT1*1)/(totT3+totT2+totT1)*10)/10
+    : 0;
 
-📋 부서별 평균
-${deptSummary}
+  // HTML 보고서 렌더링
+  // 일별 바 차트 (최대 기준 비율)
+  const maxBarU = Math.max(...totals.map(t=>t.u), 1);
+  const dayBars = totals.map(t=>{
+    const w = Math.round(t.u/maxBarU*100);
+    const day = getDayKr(t.date);
+    const dc  = DAY_COLOR[day]||'#374151';
+    const t3p = pct(t.t3,t.u), t2p=pct(t.t2,t.u), t1p=pct(t.t1,t.u);
+    return '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">'
+      +'<span style="font-size:.72rem;font-family:DM Mono,monospace;color:var(--muted);min-width:58px">'+t.date.slice(5)+'</span>'
+      +'<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:'+dc+'18;color:'+dc+';font-size:.65rem;font-weight:800">'+day+'</span>'
+      +'<div style="flex:1;height:18px;background:var(--border);border-radius:4px;overflow:hidden;display:flex">'
+        +'<div style="width:'+Math.round(t.t3/maxBarU*100)+'%;background:#dc2626;min-width:'+(t.t3?2:0)+'px"></div>'
+        +'<div style="width:'+Math.round(t.t2/maxBarU*100)+'%;background:#d97706;min-width:'+(t.t2?2:0)+'px"></div>'
+        +'<div style="width:'+Math.round(t.t1/maxBarU*100)+'%;background:#059669;min-width:'+(t.t1?2:0)+'px"></div>'
+      +'</div>'
+      +'<span style="font-size:.82rem;font-weight:800;font-family:DM Mono,monospace;color:#374151;min-width:32px;text-align:right">'+t.u+'명</span>'
+      +'<span style="font-size:.68rem;color:var(--muted)">총'+t3p+'% 주'+t2p+'% 활'+t1p+'%</span>'
+    +'</div>';
+  }).join('');
 
-📶 전도결과 합계 (${totals.length}일)
-• 신규찾기: ${totRes['신규찾기']}명
-• 연결: ${totRes['연결']}명
-• 육따: ${totRes['육따']}명
-• 영따: ${totRes['영따']}명
-• 복음방: ${totRes['복음방']}명
-• 센터확답: ${totRes['센터확답']}명
-━━━━━━━━━━━━━━━━━━━━━━━━`;
+  // 부서별 상세
+  const deptCards = ALL_DEPTS.map(dept=>{
+    const dRows = totals.filter(t=>t.row[dept]&&t.row[dept].unique>0);
+    const color = DEPT_RAW[dept];
+    if (!dRows.length) return '<div style="flex:1;min-width:140px;background:var(--surface2);border-radius:10px;padding:.8rem;border-top:3px solid #e5e7eb;opacity:.5"><div style="font-weight:700;font-size:.85rem;color:var(--muted)">'+dept+'</div><div style="font-size:.75rem;color:var(--muted);margin-top:.3rem">보고 없음</div></div>';
+    const avg = Math.round(dRows.reduce((s,r)=>s+(r.row[dept].unique||0),0)/dRows.length);
+    const rejeok = dRows[0].row[dept].재적||0;
+    const lt = dRows[dRows.length-1].row[dept];
+    // history 구조: t3names(배열) 또는 t3(숫자) 또는 t3(배열)
+    const t3n = lt.t3names ? lt.t3names.length : (Array.isArray(lt.t3) ? lt.t3.length : (lt.t3||0));
+    const t2n = lt.t2names ? lt.t2names.length : (Array.isArray(lt.t2) ? lt.t2.length : (lt.t2||0));
+    const t1n = lt.t1names ? lt.t1names.length : (Array.isArray(lt.t1) ? lt.t1.length : (lt.t1||0));
+    const idx = t3n+t2n+t1n>0?Math.round((t3n*3+t2n*2+t1n*1)/(t3n+t2n+t1n)*10)/10:0;
+    return '<div style="flex:1;min-width:140px;background:var(--surface2);border-radius:10px;padding:.8rem;border-top:3px solid '+color+'">'
+      +'<div style="font-weight:800;font-size:.88rem;color:'+color+'">'+dept+'</div>'
+      +'<div style="font-size:1.2rem;font-weight:900;color:'+color+';margin:.2rem 0">'+avg+'명 <span style="font-size:.72rem;opacity:.7">평균 (재적 '+pct(avg,rejeok)+'%)</span></div>'
+      +'<div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">'+dRows.length+'일 보고 · 지수 '+idx+'</div>'
+      +'<div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px">'
+        +'<div style="flex:'+t3n+';background:#dc2626;min-width:'+(t3n?2:0)+'px"></div>'
+        +'<div style="flex:'+t2n+';background:#d97706;min-width:'+(t2n?2:0)+'px"></div>'
+        +'<div style="flex:'+t1n+';background:#059669;min-width:'+(t1n?2:0)+'px"></div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:.68rem;margin-top:3px">'
+        +'<span style="color:#dc2626">총력 '+t3n+'</span>'
+        +'<span style="color:#d97706">주력 '+t2n+'</span>'
+        +'<span style="color:#059669">활력 '+t1n+'</span>'
+      +'</div>'
+    +'</div>';
+  }).join('');
 
-  document.getElementById('modal-title').textContent = '주간 보고서';
-  document.getElementById('modal-body').innerHTML = `
-    <textarea id="weekly-report-text" readonly style="width:100%;height:320px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:1rem;font-family:'DM Mono',monospace;font-size:.82rem;line-height:1.9;resize:none;color:var(--text)">${report}</textarea>
-    <div style="margin-top:.8rem;display:flex;gap:.7rem;justify-content:flex-end">
-      <button onclick="navigator.clipboard.writeText(document.getElementById('weekly-report-text').value).then(()=>showToast('복사됨! 텔레그램에 붙여넣으세요'))" style="padding:.6rem 1.4rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">📋 텔레그램 복사</button>
-    </div>`;
+  // 전도결과 퍼널
+  const funnelColors = ['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'];
+  const funnelLabels = ['신규찾기','연결','육따','영따','복방','확답'];
+  const funnelNotes  = ['7일 합계','현재 보유','현재 보유','현재 보유','현재 보유','현재 보유'];
+  const maxFunnel = Math.max(...RESULT_KEYS.map(k=>totRes[k]),1);
+  const funnelBars = RESULT_KEYS.map((k,i)=>{
+    const v = totRes[k];
+    const w = Math.round(v/maxFunnel*100);
+    return '<div style="margin-bottom:.5rem">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:2px">'
+        +'<span style="font-size:.78rem;font-weight:700;color:'+funnelColors[i]+'">'+funnelLabels[i]+'</span>'
+        +'<span style="font-size:.78rem;font-weight:900;color:'+funnelColors[i]+';font-family:DM Mono,monospace">'+v+'명 <span style="font-size:.65rem;color:var(--muted);font-weight:400">'+funnelNotes[i]+'</span></span>'
+      +'</div>'
+      +'<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">'
+        +'<div style="height:100%;width:'+w+'%;background:'+funnelColors[i]+';border-radius:4px;transition:width .5s"></div>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+
+  // 텔레그램 복사용 텍스트
+  const copyText = [
+    '📊 전도활동 주간보고 ('+startDate+' ~ '+endDate+')',
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    '📈 교회 전체 (재적 '+totRej+'명)',
+    '• 일평균 실질인원: '+avgU+'명 (재적 '+pct(avgU,totRej)+'%)',
+    '• 최고: '+maxU.date+' '+maxU.u+'명',
+    '• 최저: '+minU.date+' '+minU.u+'명',
+    '• 활동력지수: '+actIdx+' / 3.0',
+    '',
+    '📋 부서별 평균',
+    ...ALL_DEPTS.map(dept=>{
+      const dRows=totals.filter(t=>t.row[dept]&&t.row[dept].unique>0);
+      if(!dRows.length) return '• '+dept+': 보고 없음';
+      const avg=Math.round(dRows.reduce((s,r)=>s+(r.row[dept].unique||0),0)/dRows.length);
+      const rej=dRows[0].row[dept].재적||0;
+      const lt=dRows[dRows.length-1].row[dept];
+      const t3n=Array.isArray(lt.t3)?lt.t3.length:(lt.t3||0);
+      const t2n=Array.isArray(lt.t2)?lt.t2.length:(lt.t2||0);
+      const t1n=Array.isArray(lt.t1)?lt.t1.length:(lt.t1||0);
+      return '• '+dept+': 평균 '+avg+'명 (재적 '+pct(avg,rej)+'%) | 총력 '+t3n+' 주력 '+t2n+' 활력 '+t1n+' | '+dRows.length+'일 보고';
+    }),
+    '',
+    '📶 전도결과',
+    '• 신규찾기: '+totRes['신규찾기']+'명 (7일 합계)',
+    '• 연결: '+totRes['연결']+'명 (현재 보유)',
+    '• 육따: '+totRes['육따']+'명 (현재 보유)',
+    '• 영따: '+totRes['영따']+'명 (현재 보유)',
+    '• 복음방: '+totRes['복음방']+'명 (현재 보유)',
+    '• 센터확답: '+totRes['센터확답']+'명 (현재 보유)',
+    '━━━━━━━━━━━━━━━━━━━━━━━━'
+  ].join('\n');
+
+  document.getElementById('modal-title').textContent = '주간 보고서 ('+startDate+' ~ '+endDate+')';
+  document.getElementById('modal-body').innerHTML =
+    // ── 전체 요약 ──
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem;margin-bottom:1.2rem">'
+      +'<div style="background:#eff4ff;border-radius:10px;padding:.8rem;border-left:3px solid #2563eb;text-align:center">'
+        +'<div style="font-size:.7rem;color:var(--muted)">일평균 실질인원</div>'
+        +'<div style="font-size:1.6rem;font-weight:900;color:#2563eb">'+avgU+'명</div>'
+        +'<div style="font-size:.7rem;color:var(--muted)">재적대비 '+pct(avgU,totRej)+'%</div>'
+      +'</div>'
+      +'<div style="background:#fef2f2;border-radius:10px;padding:.8rem;border-left:3px solid #dc2626;text-align:center">'
+        +'<div style="font-size:.7rem;color:var(--muted)">신규찾기 (7일)</div>'
+        +'<div style="font-size:1.6rem;font-weight:900;color:#dc2626">'+totRes['신규찾기']+'명</div>'
+        +'<div style="font-size:.7rem;color:var(--muted)">일평균 '+Math.round(totRes['신규찾기']/recent.length)+'명</div>'
+      +'</div>'
+      +'<div style="background:#ecfdf5;border-radius:10px;padding:.8rem;border-left:3px solid #059669;text-align:center">'
+        +'<div style="font-size:.7rem;color:var(--muted)">연결 (현재)</div>'
+        +'<div style="font-size:1.6rem;font-weight:900;color:#059669">'+totRes['연결']+'명</div>'
+        +'<div style="font-size:.7rem;color:var(--muted)">복방 '+totRes['복음방']+' 확답 '+totRes['센터확답']+'</div>'
+      +'</div>'
+      +'<div style="background:#f5f3ff;border-radius:10px;padding:.8rem;border-left:3px solid #7c3aed;text-align:center">'
+        +'<div style="font-size:.7rem;color:var(--muted)">활동력지수 (평균)</div>'
+        +'<div style="font-size:1.6rem;font-weight:900;color:#7c3aed">'+actIdx+'</div>'
+        +'<div style="font-size:.7rem;color:var(--muted)">최대 3.0</div>'
+      +'</div>'
+    +'</div>'
+
+    // ── 일별 현황 ──
+    +'<div style="background:var(--surface2);border-radius:12px;padding:1rem;margin-bottom:1rem;border:1px solid var(--border)">'
+      +'<div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.7rem">📅 일별 실질 인원</div>'
+      +dayBars
+    +'</div>'
+
+    // ── 부서별 카드 ──
+    +'<div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.5rem">🏢 부서별 현황</div>'
+    +'<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">'+deptCards+'</div>'
+
+    // ── 전도결과 퍼널 ──
+    +'<div style="background:var(--surface2);border-radius:12px;padding:1rem;margin-bottom:1rem;border:1px solid var(--border)">'
+      +'<div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.8rem">📶 전도 프로세스 현황</div>'
+      +funnelBars
+    +'</div>'
+
+    // ── 텔레그램 복사 ──
+    +'<div style="background:var(--surface2);border-radius:12px;padding:1rem;border:1px solid var(--border)">'
+      +'<div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.5rem">📋 텔레그램 복사용 텍스트</div>'
+      +'<textarea id="weekly-report-text" readonly style="width:100%;height:160px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.7rem;font-family:DM Mono,monospace;font-size:.75rem;line-height:1.8;resize:none;color:var(--text)">'+copyText+'</textarea>'
+      +'<div style="margin-top:.6rem;text-align:right">'
+        +'<button onclick="copyWeeklyReport()" style="padding:.55rem 1.2rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer">📋 텔레그램 복사</button>'
+      +'</div>'
+    +'</div>';
+
   document.getElementById('modal-overlay').classList.add('open');
 }
 
