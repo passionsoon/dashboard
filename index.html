@@ -118,7 +118,7 @@ textarea::placeholder{color:var(--muted);}
 .tier-summary-bar{margin:1rem 0;}
 .tier-bar-track{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;margin-top:4px;}
 .tier-seg{height:100%;border-radius:4px;transition:flex .5s;}
-.tier-labels{display:flex;justify-content:space-between;font-size:.78rem;font-weight:700;}
+/* tier-labels removed - moved below bar */
 /* ── 부서별 미니카드 그리드 ── */
 .mini-dept-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem;margin-top:1rem;}
 .mini-dept-card{background:var(--surface);border-radius:12px;padding:1rem;border:1px solid var(--border);border-top-width:3px;transition:box-shadow .18s;cursor:pointer;}
@@ -1977,15 +1977,15 @@ function renderTrend(period){
       </div>
       <div class="period-card-body">
         <div class="tier-summary-bar">
-          <div class="tier-labels">
-            <span style="color:#dc2626">총력 ${Math.round(totT3)}명 (${pct(totT3,totU)}%)</span>
-            <span style="color:#d97706">주력 ${Math.round(totT2)}명 (${pct(totT2,totU)}%)</span>
-            <span style="color:#059669">활력 ${Math.round(totT1)}명 (${pct(totT1,totU)}%)</span>
-          </div>
           <div class="tier-bar-track">
             <div class="tier-seg" style="flex:${totT3};background:#dc2626;min-width:${totT3?3:0}px"></div>
             <div class="tier-seg" style="flex:${totT2};background:#d97706;min-width:${totT2?3:0}px"></div>
             <div class="tier-seg" style="flex:${totT1};background:#059669;min-width:${totT1?3:0}px"></div>
+          </div>
+          <div style="display:flex;gap:1rem;margin-top:.4rem;flex-wrap:wrap">
+            <span style="color:#dc2626;font-size:.75rem;font-weight:700">● 총력 ${Math.round(totT3)}명 (${pct(totT3,totU)}%)</span>
+            <span style="color:#d97706;font-size:.75rem;font-weight:700">● 주력 ${Math.round(totT2)}명 (${pct(totT2,totU)}%)</span>
+            <span style="color:#059669;font-size:.75rem;font-weight:700">● 활력 ${Math.round(totT1)}명 (${pct(totT1,totU)}%)</span>
           </div>
         </div>
         <div class="mini-dept-grid">${miniCards}</div>
