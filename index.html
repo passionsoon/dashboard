@@ -2418,7 +2418,7 @@ function openGoalModal() {
   const actRows = ALL_DEPTS.map(dept => {
     const g = getGoalRate(dept);
     const rj = rejeokOverride[dept] || '';
-    const curRj = (viewData && viewData[dept] && viewData[dept].재적) || 0;
+    const curRj = (currentViewData && currentViewData[dept] && currentViewData[dept].재적) || 0;
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:1px solid var(--border);gap:.5rem">'
       +'<span style="font-weight:800;color:'+DEPT_RAW[dept]+';min-width:52px">'+dept+'</span>'
       +'<div style="display:flex;align-items:center;gap:.4rem;flex:1">'
