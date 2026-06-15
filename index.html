@@ -737,7 +737,7 @@ document.getElementById('raw-input').addEventListener('input', function() {
 function getUnique(g){return new Set([...g.센터관리,...g.전도활동,...g.전도단]);}
 function fmtDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 const DAY_KR = ['일','월','화','수','목','금','토'];
-const DAY_COLOR = {'일':'#dc2626','토':'#2563eb'};
+const DAY_COLOR = {'일':'#dc2626','월':'#2563eb','화':'#2563eb','수':'#dc2626','목':'#2563eb','금':'#2563eb','토':'#dc2626'};
 function getDayKr(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   return DAY_KR[d.getDay()];
@@ -1770,7 +1770,6 @@ function renderDayOfWeekView() {
   const el = document.getElementById('trend-content');
   const dayStats = {};
   DAY_KR.forEach((d,i) => dayStats[i] = {label:d, dates:[], totU:[], totT3:[], totT2:[], totT1:[], results:{신규찾기:[],연결:[],육따:[],영따:[],복음방:[],센터확답:[]}});
-
   history.forEach(row => {
     const d = new Date(row.date + 'T00:00:00');
     const dow = d.getDay();
@@ -1783,16 +1782,12 @@ function renderDayOfWeekView() {
     dayStats[dow].totT3.push(totT3);
     dayStats[dow].totT2.push(totT2);
     dayStats[dow].totT1.push(totT1);
-    RESULT_KEYS.forEach(k => {
-      dayStats[dow].results[k].push(ALL_DEPTS.reduce((s,dept)=>s+getRC(row[dept]?.results,k),0));
-    });
+    RESULT_KEYS.forEach(k => { dayStats[dow].results[k].push(ALL_DEPTS.reduce((s,dept)=>s+getRC(row[dept]?.results,k),0)); });
   });
-
   const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length*10)/10 : 0;
   const maxU = Math.max(...Object.values(dayStats).map(s=>avg(s.totU)), 1);
   const RES_COLORS = ['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'];
   const RES_LABELS = ['찾기','연결','육따','영따','복방','확답'];
-
   const cards = Object.entries(dayStats).map(([dow, s]) => {
     const n = s.dates.length;
     if (!n) return '';
@@ -1803,76 +1798,41 @@ function renderDayOfWeekView() {
     const actIdx = Math.round((t3*3+t2*2+t1)/total*10)/10;
     const barW = Math.round(u/maxU*100);
     const color = DAY_COLOR[s.label] || '#374151';
-    const isRed = color === '#dc2626';
     const resCells = RESULT_KEYS.map((k,i) => {
       const v = avg(s.results[k]);
-      return v > 0
-        ? `<div style="text-align:center;min-width:52px">
-            <div style="font-size:.65rem;color:${RES_COLORS[i]};font-weight:700;margin-bottom:2px">${RES_LABELS[i]}</div>
-            <div style="font-size:1.1rem;font-weight:900;color:${RES_COLORS[i]};font-family:DM Mono,monospace">${v}</div>
-           </div>`
-        : `<div style="text-align:center;min-width:52px">
-            <div style="font-size:.65rem;color:var(--muted);font-weight:700;margin-bottom:2px">${RES_LABELS[i]}</div>
-            <div style="font-size:1.1rem;font-weight:900;color:#d1d5db;font-family:DM Mono,monospace">-</div>
-           </div>`;
+      return `<div style="text-align:center;min-width:48px"><div style="font-size:.62rem;font-weight:700;color:${v>0?RES_COLORS[i]:'var(--muted)'};margin-bottom:2px">${RES_LABELS[i]}</div><div style="font-size:1rem;font-weight:900;font-family:DM Mono,monospace;color:${v>0?RES_COLORS[i]:'#d1d5db'}">${v>0?v:'-'}</div></div>`;
     }).join('');
-
-    return `<div style="background:var(--surface);border-radius:16px;border:2px solid ${color}22;margin-bottom:.8rem;overflow:hidden;display:flex;align-items:stretch">
-      <!-- 요일 배지 (세로 왼쪽) -->
-      <div style="background:${color}${isRed?'15':'12'};border-right:2px solid ${color}22;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem .8rem;min-width:64px;gap:.3rem">
-        <div style="width:40px;height:40px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:900;color:#fff">${s.label}</div>
-        <div style="font-size:.65rem;color:${color};font-weight:700">${n}일</div>
+    return `<div style="background:var(--surface);border-radius:14px;border:1.5px solid ${color}30;margin-bottom:.7rem;overflow:hidden;display:flex;align-items:stretch;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+      <div style="background:${color}15;border-right:1.5px solid ${color}25;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.8rem;min-width:58px;gap:.3rem">
+        <div style="width:38px;height:38px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:900;color:#fff">${s.label}</div>
+        <div style="font-size:.62rem;color:${color};font-weight:700">${n}일</div>
       </div>
-      <!-- 메인 콘텐츠 -->
-      <div style="flex:1;padding:1rem 1.2rem">
-        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.7rem;flex-wrap:wrap">
-          <!-- 실질 인원 -->
-          <div>
-            <span style="font-size:2rem;font-weight:900;color:${color};font-family:DM Mono,monospace;line-height:1">${u}</span>
-            <span style="font-size:.8rem;color:var(--muted);margin-left:3px">명 평균</span>
-          </div>
-          <!-- 활동력 지수 -->
-          <div style="background:var(--surface2);border-radius:8px;padding:.3rem .7rem;border:1px solid var(--border)">
-            <span style="font-size:.65rem;color:var(--muted)">활동력</span>
-            <span style="font-size:.95rem;font-weight:900;color:#7c3aed;margin-left:4px">${actIdx}</span>
-            <span style="font-size:.65rem;color:var(--muted)">/3.0</span>
-          </div>
-          <!-- 총력/주력/활력 수치 -->
-          <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-            ${t3>0?`<span style="font-size:.75rem;font-weight:700;color:#dc2626">총력 ${Math.round(t3)}명 (${t3p}%)</span>`:''}
-            ${t2>0?`<span style="font-size:.75rem;font-weight:700;color:#d97706">주력 ${Math.round(t2)}명 (${t2p}%)</span>`:''}
-            ${t1>0?`<span style="font-size:.75rem;font-weight:700;color:#059669">활력 ${Math.round(t1)}명 (${t1p}%)</span>`:''}
+      <div style="flex:1;padding:.9rem 1.1rem">
+        <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem;flex-wrap:wrap">
+          <div style="font-size:1.8rem;font-weight:900;color:${color};font-family:DM Mono,monospace;line-height:1">${u}<span style="font-size:.8rem;color:var(--muted);font-weight:400;margin-left:3px">명</span></div>
+          <div style="background:var(--surface2);border-radius:8px;padding:.25rem .6rem;border:1px solid var(--border);font-size:.78rem">활동력 <strong style="color:#7c3aed">${actIdx}</strong><span style="color:var(--muted)">/3.0</span></div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            ${t3>0?`<span style="font-size:.72rem;font-weight:700;color:#dc2626">총력 ${Math.round(t3)}명(${t3p}%)</span>`:''}
+            ${t2>0?`<span style="font-size:.72rem;font-weight:700;color:#d97706">주력 ${Math.round(t2)}명(${t2p}%)</span>`:''}
+            ${t1>0?`<span style="font-size:.72rem;font-weight:700;color:#059669">활력 ${Math.round(t1)}명(${t1p}%)</span>`:''}
           </div>
         </div>
-        <!-- 바 -->
-        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem">
-          <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:${barW}%;background:${color};border-radius:4px;transition:width .5s"></div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:4px">
+          <div style="height:100%;display:flex;gap:1px">
+            <div style="flex:${t3};background:#dc2626;min-width:${t3p?2:0}px"></div>
+            <div style="flex:${t2};background:#d97706;min-width:${t2p?2:0}px"></div>
+            <div style="flex:${t1};background:#059669;min-width:${t1p?2:0}px"></div>
           </div>
         </div>
-        <!-- 총력/주력/활력 분포 바 -->
-        <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:.8rem">
-          <div style="flex:${t3};background:#dc2626;min-width:${t3p?2:0}px"></div>
-          <div style="flex:${t2};background:#d97706;min-width:${t2p?2:0}px"></div>
-          <div style="flex:${t1};background:#059669;min-width:${t1p?2:0}px"></div>
+        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:.7rem">
+          <div style="height:100%;width:${barW}%;background:${color};border-radius:2px"></div>
         </div>
-        <!-- 전도결과 -->
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;padding-top:.6rem;border-top:1px solid var(--border)">
-          ${resCells}
-        </div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;padding-top:.6rem;border-top:1px solid var(--border)">${resCells}</div>
       </div>
     </div>`;
   }).filter(Boolean).join('');
-
-  el.innerHTML = `
-    <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem;display:flex;gap:1rem;flex-wrap:wrap">
-      <span>📊 전체 <strong>${history.length}일</strong> 데이터 기반 요일별 평균</span>
-      <span style="color:#2563eb">■ 월·화·목·금</span>
-      <span style="color:#dc2626">■ 일·수·토</span>
-    </div>
-    ${cards}`;
+  el.innerHTML = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.8rem;display:flex;gap:1.2rem;flex-wrap:wrap;align-items:center"><span>📊 전체 <strong>${history.length}일</strong> 데이터 · 요일별 평균</span><span><span style="color:#2563eb;font-weight:700">■</span> 월·화·목·금</span><span><span style="color:#dc2626;font-weight:700">■</span> 일·수·토</span></div>${cards}`;
 }
-
 
 function copyWeeklyReport() {
   const el = document.getElementById('weekly-report-text');
