@@ -2201,6 +2201,9 @@ let rejeokOverride = {};
 try { rejeokOverride = JSON.parse(localStorage.getItem('rejeokOverride')||'{}'); } catch(e) {}
 
 function saveRejeok() { localStorage.setItem('rejeokOverride', JSON.stringify(rejeokOverride)); }
+function getRejeok(dept, dataRejeok) {
+  return rejeokOverride[dept] || dataRejeok || 0;
+}
 
 function previewFunnel() {
   const finalGoal = parseInt(document.getElementById('goal-final')?.value) || 0;
