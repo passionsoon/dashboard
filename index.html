@@ -329,8 +329,6 @@ textarea::placeholder{color:var(--muted);}
           <th style="color:var(--청년)">청년회</th>
           <th>전체</th>
           <th style="color:#059669">전도결과</th>
-          <th style="color:#059669">전도결과</th>
-          <th style="color:#059669;font-size:.75rem">전도결과</th>
           <th style="color:var(--muted)">관리</th>
         </tr></thead>
         <tbody id="daily-tbody"></tbody>
@@ -2192,6 +2190,168 @@ function openLeaderStats() {
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
+
+
+
+// ═══ 추가 기능 ═══
+let goals = {};
+try { goals = JSON.parse(localStorage.getItem('goals')||'{}'); } catch(e) {}
+
+let rejeokOverride = {};
+try { rejeokOverride = JSON.parse(localStorage.getItem('rejeokOverride')||'{}'); } catch(e) {}
+
+function saveRejeok() { localStorage.setItem('rejeokOverride', JSON.stringify(rejeokOverride)); }
+
+function previewFunnel() {
+  const finalGoal = parseInt(document.getElementById('goal-final')?.value) || 0;
+  const rates = DEFAULT_RATES.map((d,i) => parseInt(document.getElementById('rate-'+i)?.value) || d);
+  const req = finalGoal > 0 ? calcRequiredByStage(finalGoal, rates) : [0,0,0,0,0,0];
+  ['신규찾기','연결','육따','영따','복음방','센터확답'].forEach((k,i) => {
+    const el = document.getElementById('req-'+i);
+    if (el) el.textContent = req[i] > 0 ? req[i]+'명' : '-';
+  });
+}
+
+function applyGoals() {
+  ALL_DEPTS.forEach(dept => {
+    const gEl = document.getElementById('goal-' + dept);
+    if (gEl) goals[dept] = parseInt(gEl.value) || 30;
+    const rEl = document.getElementById('rejeok-' + dept);
+    if (rEl && rEl.value) rejeokOverride[dept] = parseInt(rEl.value) || 0;
+  });
+  saveGoals();
+  saveRejeok();
+  const finalGoalEl = document.getElementById('goal-final');
+  if (finalGoalEl) {
+    processGoals.finalGoal = parseInt(finalGoalEl.value) || 0;
+    processGoals.rates = DEFAULT_RATES.map((d,i) => parseInt(document.getElementById('rate-'+i)?.value) || d);
+    processGoals.deptGoals = {};
+    ALL_DEPTS.forEach(dept => {
+      const el = document.getElementById('goal-dept-'+dept);
+      processGoals.deptGoals[dept] = parseInt(el?.value) || 0;
+    });
+    saveProcessGoals();
+  }
+  showToast('목표 저장됨');
+  closeModalDirect();
+  if (currentMainTab === 'today') renderToday();
+}
+
+// ─────────────────────────────────────────────────
+// 날짜별 기록 수정/삭제
+// ─────────────────────────────────────────────────
+
+function openEditModal(date) {
+  const row = history.find(r => r.date === date);
+  if (!row) return;
+  document.getElementById('modal-title').textContent = `${date} 데이터 관리`;
+  const deptItems = ALL_DEPTS.map(dept => {
+    const v = row[dept];
+    const has = v && typeof v === 'object' && v.unique > 0;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border)">
+      <div>
+        <span style="font-weight:700;color:${DEPT_RAW[dept]}">${dept}</span>
+        ${has ? `<span style="margin-left:.5rem;font-size:.8rem;color:var(--muted)">실질 ${v.unique}명</span>` : '<span style="margin-left:.5rem;font-size:.8rem;color:var(--muted)">데이터 없음</span>'}
+      </div>
+      ${has ? `<button onclick="deleteDeptData('${date}','${dept}')" style="padding:4px 10px;border-radius:8px;border:1px solid #fca5a5;background:#fff0f0;color:#dc2626;font-size:.78rem;cursor:pointer">삭제</button>` : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom:1rem;padding:.8rem 1rem;background:#fff7ed;border-radius:10px;border:1px solid #fed7aa;font-size:.82rem;color:#92400e">
+      ⚠️ 삭제하면 복구할 수 없어요.
+    </div>
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">${deptItems}</div>
+    <div style="margin-top:1rem;text-align:right">
+      <button onclick="deleteDate('${date}')" style="padding:.5rem 1.2rem;border-radius:10px;border:1px solid #fca5a5;background:#dc2626;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">🗑️ 이 날짜 전체 삭제</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function deleteDeptData(date, dept) {
+  if (!confirm(`${date} ${dept} 데이터를 삭제할까요?`)) return;
+  const idx = history.findIndex(r => r.date === date);
+  if (idx === -1) return;
+  delete history[idx][dept];
+  saveSharedData();
+  showToast(`${dept} 데이터 삭제됨`);
+  closeModalDirect();
+  renderDailyTable();
+}
+
+function deleteDate(date) {
+  if (!confirm(`${date} 전체 데이터를 삭제할까요?`)) return;
+  history = history.filter(r => r.date !== date);
+  saveSharedData();
+  showToast(`${date} 삭제됨`);
+  closeModalDirect();
+  renderDailyTable();
+}
+
+// ─────────────────────────────────────────────────
+// 날짜별 상세 모달
+// ─────────────────────────────────────────────────
+
+function openDayModal(date, deptFilter) {
+  const row = history.find(r => r.date === date);
+  if (!row) return;
+  document.getElementById('modal-title').textContent = date + ' 전도 현황';
+  let activeDept = deptFilter || '전체';
+
+  function renderModalContent() {
+    const depts = activeDept === '전체' ? ALL_DEPTS : [activeDept];
+    const tabs = ['전체', ...ALL_DEPTS].map(d =>
+      `<button class="modal-dept-tab ${d===activeDept?'active':''}" onclick="(function(){document.querySelectorAll('.modal-dept-tab').forEach(b=>b.classList.remove('active'));this.classList.add('active');activeDept='${d}';renderModalContent();}).call(this)">${d==='전체'?'⛪ 전체':d}</button>`
+    ).join('');
+
+    const cards = depts.map(dept => {
+      const v = row[dept];
+      if (!v || typeof v !== 'object') return `<div style="padding:1rem;text-align:center;color:var(--muted);font-size:.88rem">${dept}: 데이터 없음</div>`;
+      const color = DEPT_RAW[dept];
+      const t3n = v.t3names?v.t3names.length:(Array.isArray(v.t3)?v.t3.length:(v.t3||0));
+      const t2n = v.t2names?v.t2names.length:(Array.isArray(v.t2)?v.t2.length:(v.t2||0));
+      const t1n = v.t1names?v.t1names.length:(Array.isArray(v.t1)?v.t1.length:(v.t1||0));
+      const makeChips = (names, bg, tc) => (names||[]).map(n =>
+        `<span style="background:${bg};color:${tc};font-size:.78rem;padding:3px 10px;border-radius:7px;font-weight:600">${n}</span>`
+      ).join('');
+      return `<div style="border:1.5px solid ${color}33;border-radius:14px;padding:1.2rem;margin-bottom:1rem">
+        <div style="font-size:1.1rem;font-weight:900;color:${color};margin-bottom:.8rem">${dept} <span style="font-size:.8rem;opacity:.7">재적 ${v.재적||0}명</span></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
+          <span style="background:#fef2f2;color:#dc2626;font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">총력 ${t3n}</span>
+          <span style="background:#fffbeb;color:#d97706;font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">주력 ${t2n}</span>
+          <span style="background:#ecfdf5;color:#059669;font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">활력 ${t1n}</span>
+          <span style="background:var(--accent-light);color:var(--accent);font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">실질 ${v.unique||0}명</span>
+        </div>
+        ${t3n>0?`<div style="margin-bottom:.5rem"><div style="font-size:.7rem;color:#dc2626;font-weight:700;margin-bottom:3px">총력 활동자</div><div style="display:flex;flex-wrap:wrap;gap:4px">${makeChips(v.t3names||v.t3||[],'#fef2f2','#dc2626')}</div></div>`:''}
+        ${t2n>0?`<div style="margin-bottom:.5rem"><div style="font-size:.7rem;color:#d97706;font-weight:700;margin-bottom:3px">주력 활동자</div><div style="display:flex;flex-wrap:wrap;gap:4px">${makeChips(v.t2names||v.t2||[],'#fffbeb','#d97706')}</div></div>`:''}
+        ${t1n>0?`<div style="margin-bottom:.5rem"><div style="font-size:.7rem;color:#059669;font-weight:700;margin-bottom:3px">활력 활동자</div><div style="display:flex;flex-wrap:wrap;gap:4px">${makeChips(v.t1names||v.t1||[],'#ecfdf5','#059669')}</div></div>`:''}
+        <div style="margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border)">
+          <div style="font-size:.7rem;color:var(--muted);font-weight:700;margin-bottom:.5rem">전도결과</div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            ${RESULT_KEYS.map((k,i)=>{const cnt=getRC(v.results,k);const cl=['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'][i];const lbl=['찾기','연결','육따','영따','복방','확답'][i];return cnt>0?`<span style="background:${cl}15;border:1px solid ${cl}40;color:${cl};font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">${lbl} ${cnt}</span>`:''}).join('')||'<span style="color:var(--muted);font-size:.8rem">결과 없음</span>'}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-dept-tabs">${tabs}</div>
+      ${cards}`;
+  }
+  renderModalContent();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+
+(async function init() {
+  await loadSharedData();
+  populateCompareDates();
+  if (currentMainTab === 'today') renderToday();
+  if (currentMainTab === 'trend') renderTrend(currentPeriod);
+  if (currentMainTab === 'daily') renderDailyTable();
+  // 날짜 피커 초기값
+  const el = document.getElementById('report-date');
+  if (el && !el.value) el.value = fmtDate(now);
+})();
 
 
 (async function init() {
