@@ -1005,6 +1005,17 @@ function makeResultGrid(results, prevResults) {
 // ══════════════════════════════════════════════════════
 // 오늘 현황 렌더링
 // ══════════════════════════════════════════════════════
+function getGoalRate(dept) { return goals[dept] || DEFAULT_GOAL_RATE; }
+function goalStatus(rate, goal) {
+  if (rate >= goal) return { color:'#059669', label:'달성', icon:'✅' };
+  if (rate >= goal * 0.7) return { color:'#d97706', label:'근접', icon:'🔶' };
+  return { color:'#dc2626', label:'미달', icon:'❌' };
+}
+function getRejeok(dept, dataRejeok) {
+  return rejeokOverride[dept] || dataRejeok || 0;
+}
+
+
 function renderToday(){
   // view-date 선택 시 해당 날짜 history 데이터 사용, 아니면 오늘 deptData
   const viewSel = document.getElementById('view-date');
@@ -2196,17 +2207,13 @@ function openLeaderStats() {
 // ═══ 추가 기능 ═══
 let goals = {};
 try { goals = JSON.parse(localStorage.getItem('goals')||'{}'); } catch(e) {}
+const DEFAULT_GOAL_RATE = 25;
 
 let rejeokOverride = {};
 try { rejeokOverride = JSON.parse(localStorage.getItem('rejeokOverride')||'{}'); } catch(e) {}
 
 function saveRejeok() { localStorage.setItem('rejeokOverride', JSON.stringify(rejeokOverride)); }
-function getRejeok(dept, dataRejeok) {
-  return rejeokOverride[dept] || dataRejeok || 0;
-}
-function getRejeok(dept, dataRejeok) {
-  return rejeokOverride[dept] || dataRejeok || 0;
-}
+
 
 function previewFunnel() {
   const finalGoal = parseInt(document.getElementById('goal-final')?.value) || 0;
