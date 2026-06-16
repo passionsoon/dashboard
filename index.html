@@ -1016,6 +1016,126 @@ function getRejeok(dept, dataRejeok) {
 }
 
 
+let processGoals = {};
+try { processGoals = JSON.parse(localStorage.getItem('processGoals')||'{}'); } catch(e) {}
+function saveProcessGoals() { localStorage.setItem('processGoals', JSON.stringify(processGoals)); }
+const DEFAULT_RATES = [20, 50, 80, 80, 70];
+function calcRequiredByStage(finalGoal, rates) {
+  var req = [0,0,0,0,0,0]; req[5] = finalGoal;
+  for (var i = 4; i >= 0; i--) { var rate = (rates[i]||DEFAULT_RATES[i])/100; req[i] = rate>0?Math.ceil(req[i+1]/rate):0; }
+  return req;
+}
+function getGoalRate(dept) { return goals[dept] || 25; }
+function goalStatus(rate, goal) {
+  if (rate>=goal) return {color:'#059669',label:'달성',icon:'✅'};
+  if (rate>=goal*0.7) return {color:'#d97706',label:'근접',icon:'🔶'};
+  return {color:'#dc2626',label:'미달',icon:'❌'};
+}
+function getRejeok(dept, dataRejeok) { return rejeokOverride[dept] || dataRejeok || 0; }
+
+function renderTrend(period){
+  var el=document.getElementById('trend-content');
+  if(!el)return;
+  if(period==='dayofweek'){renderDayOfWeekView();return;}
+  if(!history.length){el.innerHTML='<div style="text-align:center;padding:4rem;color:var(--muted)">아직 누적 데이터가 없어요.<br>보고서를 입력하면 추이가 나타납니다.</div>';return;}
+  var grouped={};
+  history.forEach(function(row){
+    var key=periodKey(row.date,period);
+    if(!grouped[key])grouped[key]=[];
+    grouped[key].push(row);
+  });
+  var sortedKeys=Object.keys(grouped).sort();
+  var html=sortedKeys.map(function(key){
+    var rows=grouped[key];
+    var agg=aggregatePeriod(rows);
+    var totU=Math.round(ALL_DEPTS.reduce(function(s,d){return s+(agg[d]?agg[d].unique||0:0);},0)*10)/10;
+    var totT3=Math.round(ALL_DEPTS.reduce(function(s,d){return s+(agg[d]?agg[d].t3||0:0);},0)*10)/10;
+    var totT2=Math.round(ALL_DEPTS.reduce(function(s,d){return s+(agg[d]?agg[d].t2||0:0);},0)*10)/10;
+    var totT1=Math.round(ALL_DEPTS.reduce(function(s,d){return s+(agg[d]?agg[d].t1||0:0);},0)*10)/10;
+    var label=periodLabel(key,period);
+    var t3p=pct(totT3,totU),t2p=pct(totT2,totU),t1p=pct(totT1,totU);
+    var deptCards=ALL_DEPTS.map(function(dept){
+      var d=agg[dept];
+      if(!d||!d.unique)return '<div class="mini-dept-card" style="border-top-color:'+DEPT_RAW[dept]+';opacity:.4"><div class="mini-dept-name" style="color:'+DEPT_RAW[dept]+'">'+dept+'</div><div style="font-size:.75rem;color:var(--muted)">데이터 없음</div></div>';
+      var t3n=Math.round((d.t3||0)*10)/10,t2n=Math.round((d.t2||0)*10)/10,t1n=Math.round((d.t1||0)*10)/10;
+      return '<div class="mini-dept-card" style="border-top-color:'+DEPT_RAW[dept]+'">'
+        +'<div class="mini-dept-name" style="color:'+DEPT_RAW[dept]+'">'+dept+'</div>'
+        +'<div class="mini-dept-unique" style="color:'+DEPT_RAW[dept]+'">'+Math.round(d.unique*10)/10+'<span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">명</span></div>'
+        +'<div class="mini-dept-rate">재적대비 '+pct(d.unique,d.재적||1)+'%</div>'
+        +'<div class="mini-tier-bar"><div style="flex:'+t3n+';background:#dc2626;min-width:'+(t3n?2:0)+'px"></div><div style="flex:'+t2n+';background:#d97706;min-width:'+(t2n?2:0)+'px"></div><div style="flex:'+t1n+';background:#059669;min-width:'+(t1n?2:0)+'px"></div></div>'
+        +'<div class="mini-tier-nums"><span style="color:#dc2626">총력 '+t3n+'</span><span style="color:#d97706">주력 '+t2n+'</span><span style="color:#059669">활력 '+t1n+'</span></div>'
+        +'</div>';
+    }).join('');
+    return '<div class="period-card">'
+      +'<div class="period-card-header">'
+        +'<div><div class="period-label">'+period.toUpperCase()+'</div>'
+        +'<div class="period-title">'+label+'</div>'
+        +'<div class="period-meta">데이터 '+rows.length+'일</div></div>'
+        +'<div class="period-total"><div class="period-total-num">'+totU+'</div>'
+        +'<div class="period-total-sub">전체 실질<br>'
+        +'<span style="color:#dc2626;font-size:.72rem">총력 '+totT3+'</span> '
+        +'<span style="color:#d97706;font-size:.72rem">주력 '+totT2+'</span> '
+        +'<span style="color:#059669;font-size:.72rem">활력 '+totT1+'</span></div></div>'
+      +'</div>'
+      +'<div class="tier-summary-bar">'
+        +'<div class="tier-bar-track"><div class="tier-seg" style="flex:'+totT3+';background:#dc2626;min-width:'+(totT3?3:0)+'px"></div><div class="tier-seg" style="flex:'+totT2+';background:#d97706;min-width:'+(totT2?3:0)+'px"></div><div class="tier-seg" style="flex:'+totT1+';background:#059669;min-width:'+(totT1?3:0)+'px"></div></div>'
+        +'<div style="display:flex;gap:1rem;margin-top:.4rem;flex-wrap:wrap">'
+          +'<span style="color:#dc2626;font-size:.75rem;font-weight:700">● 총력 '+totT3+'명 ('+t3p+'%)</span>'
+          +'<span style="color:#d97706;font-size:.75rem;font-weight:700">● 주력 '+totT2+'명 ('+t2p+'%)</span>'
+          +'<span style="color:#059669;font-size:.75rem;font-weight:700">● 활력 '+totT1+'명 ('+t1p+'%)</span>'
+        +'</div>'
+      +'</div>'
+      +'<div class="mini-dept-grid">'+deptCards+'</div>'
+      +'</div>';
+  }).join('');
+  el.innerHTML=html||'<div style="text-align:center;padding:3rem;color:var(--muted)">데이터가 없어요</div>';
+}
+
+function renderDailyTable(){
+  var tbody=document.getElementById('daily-tbody');
+  if(!tbody)return;
+  var search=(document.getElementById('date-search')||{value:''}).value||'';
+  var deptFilter=(document.getElementById('dept-filter')||{value:'all'}).value||'all';
+  var rows=[...history].sort(function(a,b){return a.date<b.date?1:-1;});
+  if(search)rows=rows.filter(function(r){return r.date.includes(search);});
+  if(deptFilter!=='all')rows=rows.filter(function(r){return r[deptFilter]&&r[deptFilter].unique>0;});
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--muted)">기록이 없어요</td></tr>';return;}
+  var sortedAsc=[...history].sort(function(a,b){return a.date<b.date?-1:1;});
+  var prevMap={};
+  sortedAsc.forEach(function(r,i,arr){if(i>0)prevMap[r.date]=arr[i-1];});
+  tbody.innerHTML=rows.map(function(row){
+    var prev=prevMap[row.date];
+    var d=row.date;
+    var deptCells=ALL_DEPTS.map(function(dept){
+      var v=row[dept];
+      var u=v&&v.unique?v.unique:0;
+      return '<td style="text-align:center;padding:.6rem .5rem;font-family:DM Mono,monospace;font-weight:700;color:'+(u?DEPT_RAW[dept]:'#d1d5db')+'">'+u+'</td>';
+    }).join('');
+    var total=ALL_DEPTS.reduce(function(s,dept){return s+(row[dept]&&row[dept].unique?row[dept].unique:0);},0);
+    var prevTotal=prev?ALL_DEPTS.reduce(function(s,dept){return s+(prev[dept]&&prev[dept].unique?prev[dept].unique:0);},0):null;
+    var delta=prevTotal!==null?total-prevTotal:null;
+    var deltaHtml=delta===null?'':delta>0?'<span class="delta-up"> ▲'+delta+'</span>':delta<0?'<span class="delta-down"> ▼'+Math.abs(delta)+'</span>':'';
+    var rowResults=RESULT_KEYS.reduce(function(o,k){o[k]=ALL_DEPTS.reduce(function(s,dept){return s+getRC(row[dept]&&row[dept].results,k);},0);return o;},{});
+    var resBadges=RESULT_KEYS.map(function(k,i){
+      var v=rowResults[k];
+      var lbl=['찾','연','육','영','복','확'][i];
+      var cl=['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'][i];
+      return v>0?('<span style="display:inline-flex;align-items:center;gap:1px;background:'+cl+'15;border:1px solid '+cl+'40;border-radius:5px;padding:1px 5px;margin-right:2px;font-size:.7rem"><span style="color:'+cl+';font-weight:700">'+lbl+'</span><strong style="color:'+cl+';margin-left:1px">'+v+'</strong></span>'):'';
+    }).join('');
+    return '<tr class="daily-row" data-date="'+d+'" onclick="if(!event.target.closest(\'button\'))openDayModal(this.dataset.date,null)">'
+      +'<td style="padding:.6rem 1rem;font-family:DM Mono,monospace;font-weight:700;white-space:nowrap">'+d+dayBadge(d)+'</td>'
+      +deptCells
+      +'<td style="text-align:center;font-weight:800;color:var(--accent);padding:.6rem .5rem">'+total+'명'+deltaHtml+'</td>'
+      +'<td style="padding:.6rem .5rem">'+resBadges+'</td>'
+      +'<td style="text-align:center;padding:.6rem .3rem">'
+        +'<button data-date="'+d+'" onclick="event.stopPropagation();openEditModal(this.dataset.date)" style="font-size:.72rem;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer">✏️</button> '
+        +'<button data-date="'+d+'" onclick="event.stopPropagation();deleteDate(this.dataset.date)" style="font-size:.72rem;padding:3px 8px;border-radius:6px;border:1px solid #fca5a5;background:#fff0f0;color:#dc2626;cursor:pointer">🗑️</button>'
+      +'</td>'
+    +'</tr>';
+  }).join('');
+}
+
+
 function renderToday(){
   // view-date 선택 시 해당 날짜 history 데이터 사용, 아니면 오늘 deptData
   const viewSel = document.getElementById('view-date');
