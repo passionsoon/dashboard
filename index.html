@@ -1044,7 +1044,7 @@ function renderTrend(period){
     if(!grouped[key])grouped[key]=[];
     grouped[key].push(row);
   });
-  var sortedKeys=Object.keys(grouped).sort();
+  var sortedKeys=Object.keys(grouped).sort().reverse();
   var html=sortedKeys.map(function(key){
     var rows=grouped[key];
     var agg=aggregatePeriod(rows);
@@ -2335,6 +2335,290 @@ try { rejeokOverride = JSON.parse(localStorage.getItem('rejeokOverride')||'{}');
 function saveRejeok() { localStorage.setItem('rejeokOverride', JSON.stringify(rejeokOverride)); }
 
 
+function applyGoals() {
+  // 공통/부서별 모두 저장
+  ALL_DEPTS.forEach(function(dept) {
+    var gEl = document.getElementById('goal-'+dept);
+    if (gEl) goals[dept] = parseInt(gEl.value) || 25;
+    var rEl = document.getElementById('rej-'+dept);
+    if (rEl) { var r = parseInt(rEl.value)||0; if(r>0) rejeokOverride[dept]=r; else delete rejeokOverride[dept]; }
+  });
+  localStorage.setItem('goals', JSON.stringify(goals));
+  saveRejeok();
+
+  // 현재 활성 탭의 rates/finalGoal 저장
+  if (!processGoals.deptGoals) processGoals.deptGoals = {};
+  ['전체(공통)', ...ALL_DEPTS].forEach(function(dept) {
+    var finalEl = document.getElementById('gfinal-'+dept);
+    if (!finalEl) return;
+    var rates = DEFAULT_RATES.map(function(def, i) {
+      return parseInt((document.getElementById('grate-'+dept+'-'+i)||{value:def}).value) || def;
+    });
+    var finalGoal = parseInt(finalEl.value) || 0;
+    if (dept === '전체(공통)') {
+      processGoals.rates = rates;
+      processGoals.finalGoal = finalGoal;
+    } else {
+      processGoals.deptGoals[dept] = { rates: rates, finalGoal: finalGoal };
+    }
+  });
+  saveProcessGoals();
+  closeModalDirect();
+  showToast('목표가 저장되었습니다');
+  renderToday();
+}
+
+function openEditModal(date) {
+  const row = history.find(r => r.date === date);
+  if (!row) return;
+  document.getElementById('modal-title').textContent = `${date} 데이터 관리`;
+  const deptItems = ALL_DEPTS.map(dept => {
+    const v = row[dept];
+    const has = v && typeof v === 'object' && v.unique > 0;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border)">
+      <div>
+        <span style="font-weight:700;color:${DEPT_RAW[dept]}">${dept}</span>
+        ${has ? `<span style="margin-left:.5rem;font-size:.8rem;color:var(--muted)">실질 ${v.unique}명</span>` : '<span style="margin-left:.5rem;font-size:.8rem;color:var(--muted)">데이터 없음</span>'}
+      </div>
+      ${has ? `<button onclick="deleteDeptData('${date}','${dept}')" style="padding:4px 10px;border-radius:8px;border:1px solid #fca5a5;background:#fff0f0;color:#dc2626;font-size:.78rem;cursor:pointer">삭제</button>` : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom:1rem;padding:.8rem 1rem;background:#fff7ed;border-radius:10px;border:1px solid #fed7aa;font-size:.82rem;color:#92400e">
+      ⚠️ 삭제하면 복구할 수 없어요.
+    </div>
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">${deptItems}</div>
+    <div style="margin-top:1rem;text-align:right">
+      <button onclick="deleteDate('${date}')" style="padding:.5rem 1.2rem;border-radius:10px;border:1px solid #fca5a5;background:#dc2626;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">🗑️ 이 날짜 전체 삭제</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function deleteDeptData(date, dept) {
+  if (!confirm(`${date} ${dept} 데이터를 삭제할까요?`)) return;
+  const idx = history.findIndex(r => r.date === date);
+  if (idx === -1) return;
+  delete history[idx][dept];
+  saveSharedData();
+  showToast(`${dept} 데이터 삭제됨`);
+  closeModalDirect();
+  renderDailyTable();
+}
+
+function deleteDate(date) {
+  if (!confirm(`${date} 전체 데이터를 삭제할까요?`)) return;
+  history = history.filter(r => r.date !== date);
+  saveSharedData();
+  showToast(`${date} 삭제됨`);
+  closeModalDirect();
+  renderDailyTable();
+}
+
+// ─────────────────────────────────────────────────
+// 날짜별 상세 모달
+// ─────────────────────────────────────────────────
+
+function openDayModal(date, deptFilter) {
+  const row = history.find(r => r.date === date);
+  if (!row) return;
+  document.getElementById('modal-title').textContent = date + ' 전도 현황';
+  let activeDept = deptFilter || '전체';
+
+  function renderModalContent() {
+    const depts = activeDept === '전체' ? ALL_DEPTS : [activeDept];
+    const tabs = ['전체', ...ALL_DEPTS].map(d =>
+      `<button class="modal-dept-tab ${d===activeDept?'active':''}" onclick="(function(){document.querySelectorAll('.modal-dept-tab').forEach(b=>b.classList.remove('active'));this.classList.add('active');activeDept='${d}';renderModalContent();}).call(this)">${d==='전체'?'⛪ 전체':d}</button>`
+    ).join('');
+
+    const cards = depts.map(dept => {
+      const v = row[dept];
+      if (!v || typeof v !== 'object') return `<div style="padding:1rem;text-align:center;color:var(--muted);font-size:.88rem">${dept}: 데이터 없음</div>`;
+      const color = DEPT_RAW[dept];
+      const t3n = v.t3names?v.t3names.length:(Array.isArray(v.t3)?v.t3.length:(v.t3||0));
+      const t2n = v.t2names?v.t2names.length:(Array.isArray(v.t2)?v.t2.length:(v.t2||0));
+      const t1n = v.t1names?v.t1names.length:(Array.isArray(v.t1)?v.t1.length:(v.t1||0));
+      const makeChips = (names, bg, tc) => (names||[]).map(n =>
+        `<span style="background:${bg};color:${tc};font-size:.78rem;padding:3px 10px;border-radius:7px;font-weight:600">${n}</span>`
+      ).join('');
+      return `<div style="border:1.5px solid ${color}33;border-radius:14px;padding:1.2rem;margin-bottom:1rem">
+        <div style="font-size:1.1rem;font-weight:900;color:${color};margin-bottom:.8rem">${dept} <span style="font-size:.8rem;opacity:.7">재적 ${v.재적||0}명</span></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
+          <span style="background:#fef2f2;color:#dc2626;font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">총력 ${t3n}</span>
+          <span style="background:#fffbeb;color:#d97706;font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">주력 ${t2n}</span>
+          <span style="background:#ecfdf5;color:#059669;font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">활력 ${t1n}</span>
+          <span style="background:var(--accent-light);color:var(--accent);font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">실질 ${v.unique||0}명</span>
+        </div>
+        ${t3n>0?`<div style="margin-bottom:.5rem"><div style="font-size:.7rem;color:#dc2626;font-weight:700;margin-bottom:3px">총력 활동자</div><div style="display:flex;flex-wrap:wrap;gap:4px">${makeChips(v.t3names||v.t3||[],'#fef2f2','#dc2626')}</div></div>`:''}
+        ${t2n>0?`<div style="margin-bottom:.5rem"><div style="font-size:.7rem;color:#d97706;font-weight:700;margin-bottom:3px">주력 활동자</div><div style="display:flex;flex-wrap:wrap;gap:4px">${makeChips(v.t2names||v.t2||[],'#fffbeb','#d97706')}</div></div>`:''}
+        ${t1n>0?`<div style="margin-bottom:.5rem"><div style="font-size:.7rem;color:#059669;font-weight:700;margin-bottom:3px">활력 활동자</div><div style="display:flex;flex-wrap:wrap;gap:4px">${makeChips(v.t1names||v.t1||[],'#ecfdf5','#059669')}</div></div>`:''}
+        <div style="margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border)">
+          <div style="font-size:.7rem;color:var(--muted);font-weight:700;margin-bottom:.5rem">전도결과</div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            ${RESULT_KEYS.map((k,i)=>{const cnt=getRC(v.results,k);const cl=['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'][i];const lbl=['찾기','연결','육따','영따','복방','확답'][i];return cnt>0?`<span style="background:${cl}15;border:1px solid ${cl}40;color:${cl};font-size:.78rem;padding:3px 8px;border-radius:6px;font-weight:700">${lbl} ${cnt}</span>`:''}).join('')||'<span style="color:var(--muted);font-size:.8rem">결과 없음</span>'}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-dept-tabs">${tabs}</div>
+      ${cards}`;
+  }
+  renderModalContent();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+
+(async function init() {
+  await loadSharedData();
+  populateCompareDates();
+  if (currentMainTab === 'today') renderToday();
+  if (currentMainTab === 'trend') renderTrend(currentPeriod);
+  if (currentMainTab === 'daily') renderDailyTable();
+  // 날짜 피커 초기값
+  const el = document.getElementById('report-date');
+  if (el && !el.value) el.value = fmtDate(now);
+})();
+
+
+;
+
+
+
+
+function showToast(msg, type) {
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:2rem;right:2rem;background:'+(type==='warn'?'#d97706':'#059669')+';color:#fff;padding:.8rem 1.4rem;border-radius:12px;font-weight:700;font-size:.9rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .3s';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){ t.remove(); },300); }, 2500);
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function openGoalModal() {
+  document.getElementById('modal-title').textContent = '🎯 목표 설정';
+
+  // 부서별 탭 + 공통 설정
+  var tabs = ['전체(공통)', ...ALL_DEPTS].map(function(d, i) {
+    return '<button onclick="goalTab(\''+d+'\')" id="gtab-'+d+'" style="padding:.4rem 1rem;border-radius:8px;font-size:.85rem;font-weight:700;border:1.5px solid var(--border);cursor:pointer;background:'+(i===0?'var(--accent)':'var(--surface2)')+';color:'+(i===0?'#fff':'var(--muted)')+'">'+d+'</button>';
+  }).join('');
+
+  document.getElementById('modal-body').innerHTML =
+    // 탭
+    '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.2rem">'+tabs+'</div>'
+    // 탭 컨텐츠
+    + '<div id="goal-tab-content"></div>'
+    // 적용 버튼
+    + '<div style="margin-top:1.2rem;text-align:right">'
+      + '<button onclick="applyGoals()" style="padding:.6rem 1.4rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">✅ 저장</button>'
+    + '</div>';
+
+  goalTab('전체(공통)');
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function goalTab(dept) {
+  // 탭 활성화
+  ['전체(공통)', ...ALL_DEPTS].forEach(function(d) {
+    var el = document.getElementById('gtab-'+d);
+    if (!el) return;
+    el.style.background = d===dept ? 'var(--accent)' : 'var(--surface2)';
+    el.style.color = d===dept ? '#fff' : 'var(--muted)';
+    el.style.borderColor = d===dept ? 'var(--accent)' : 'var(--border)';
+  });
+
+  var isCommon = dept === '전체(공통)';
+  var pg = (processGoals.deptGoals && processGoals.deptGoals[dept]) || {};
+  var curRates = pg.rates || processGoals.rates || DEFAULT_RATES;
+  var curFinal = pg.finalGoal || (isCommon ? (processGoals.finalGoal||0) : 0);
+
+  var deptGoalHtml = '';
+  if (!isCommon) {
+    var cur = goals[dept] || 25;
+    var rej = rejeokOverride[dept] || 0;
+    deptGoalHtml = '<div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:1rem;padding:.8rem;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">'
+      + '<div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:3px">활동률 목표(%)</label>'
+        + '<input type="number" id="goal-'+dept+'" value="'+cur+'" min="1" max="100" style="width:80px;padding:.35rem .5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem"></div>'
+      + '<div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:3px">재적 수동변경</label>'
+        + '<input type="number" id="rej-'+dept+'" value="'+rej+'" min="0" placeholder="자동" style="width:90px;padding:.35rem .5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem"></div>'
+    + '</div>';
+  } else {
+    // 공통 탭에서 전체 부서 활동률 한번에
+    deptGoalHtml = '<div style="margin-bottom:1rem;padding:.8rem;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">'
+      + '<div style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.6rem">부서별 활동률 목표 & 재적</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.5rem">'
+      + ALL_DEPTS.map(function(d) {
+          return '<div style="background:var(--surface);border-radius:8px;padding:.5rem .8rem;border-left:3px solid '+DEPT_RAW[d]+'">'
+            + '<div style="font-weight:800;font-size:.82rem;color:'+DEPT_RAW[d]+';margin-bottom:.3rem">'+d+'</div>'
+            + '<div style="display:flex;gap:.5rem">'
+              + '<input type="number" id="goal-'+d+'" value="'+(goals[d]||25)+'" min="1" max="100" style="width:60px;padding:.25rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.82rem" placeholder="활동%">'
+              + '<input type="number" id="rej-'+d+'" value="'+(rejeokOverride[d]||0)+'" min="0" style="width:70px;padding:.25rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.82rem" placeholder="재적">'
+            + '</div>'
+          + '</div>';
+        }).join('')
+      + '</div>'
+    + '</div>';
+  }
+
+  var rateInputs = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem;margin-bottom:.8rem">'
+    + ['찾기→연결','연결→육따','육따→영따','영따→복방','복방→확답'].map(function(label, i) {
+        return '<div style="background:var(--surface);border-radius:10px;padding:.6rem .8rem;border:1px solid var(--border)">'
+          + '<div style="font-size:.68rem;color:var(--muted);margin-bottom:4px">'+label+'</div>'
+          + '<div style="display:flex;align-items:center;gap:.3rem">'
+            + '<input type="number" id="grate-'+dept+'-'+i+'" value="'+curRates[i]+'" min="1" max="100" style="width:55px;padding:.25rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.88rem">'
+            + '<span style="font-size:.78rem;color:var(--muted)">%</span>'
+          + '</div>'
+        + '</div>';
+      }).join('')
+  + '</div>';
+
+  var funnelPreview = '<div style="margin-bottom:.6rem;display:flex;align-items:center;gap:.8rem">'
+    + '<label style="font-size:.85rem;font-weight:700">센터확답 목표:</label>'
+    + '<input type="number" id="gfinal-'+dept+'" value="'+curFinal+'" min="0" style="width:80px;padding:.35rem .5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem">'
+    + '<span style="font-size:.75rem;color:var(--muted)">명</span>'
+    + '<button onclick="previewFunnel(\''+dept+'\')" style="padding:.35rem .9rem;border-radius:8px;background:var(--accent-light);color:var(--accent);border:1px solid var(--accent);font-size:.8rem;font-weight:700;cursor:pointer">🔍 역산</button>'
+  + '</div>'
+  + '<div id="funnel-preview-'+dept+'" style="font-size:.82rem"></div>';
+
+  document.getElementById('goal-tab-content').innerHTML =
+    deptGoalHtml
+    + '<div style="padding:.8rem;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">'
+      + '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.6rem">📶 단계별 향상률 (%)</div>'
+      + rateInputs
+      + funnelPreview
+    + '</div>';
+}
+
+function previewFunnel(dept) {
+  dept = dept || '전체(공통)';
+  var finalGoal = parseInt((document.getElementById('gfinal-'+dept)||{value:'0'}).value) || 0;
+  var rates = DEFAULT_RATES.map(function(def, i) {
+    return parseInt((document.getElementById('grate-'+dept+'-'+i)||{value:def}).value) || def;
+  });
+  var el = document.getElementById('funnel-preview-'+dept);
+  if (!el) return;
+  if (!finalGoal) { el.innerHTML = '<span style="color:var(--muted)">센터확답 목표를 입력하세요</span>'; return; }
+  var req = calcRequiredByStage(finalGoal, rates);
+  var labels = ['신규찾기','연결','육따','영따','복음방','센터확답'];
+  var colors = ['#2563eb','#7c3aed','#b45309','#0369a1','#047857','#be185d'];
+  el.innerHTML = '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem">'
+    + labels.map(function(l,i) {
+        return '<div style="background:'+colors[i]+'12;border:1px solid '+colors[i]+'33;border-radius:8px;padding:.3rem .6rem;text-align:center">'
+          + '<div style="font-size:.62rem;color:'+colors[i]+';font-weight:700">'+l+'</div>'
+          + '<div style="font-size:.95rem;font-weight:900;color:'+colors[i]+';font-family:DM Mono,monospace">'+req[i]+'</div>'
+        + '</div>';
+      }).join('')
+  + '</div>';
+}
+
 function previewFunnel() {
   const finalGoal = parseInt(document.getElementById('goal-final')?.value) || 0;
   const rates = DEFAULT_RATES.map((d,i) => parseInt(document.getElementById('rate-'+i)?.value) || d);
@@ -2487,18 +2771,77 @@ function openDayModal(date, deptFilter) {
 })();
 
 
-(async function init() {
-  await loadSharedData();
-  populateCompareDates();
-  if (currentMainTab === 'today') renderToday();
-  if (currentMainTab === 'trend') renderTrend(currentPeriod);
-  if (currentMainTab === 'daily') renderDailyTable();
-  // 날짜 피커 초기값
-  const el = document.getElementById('report-date');
-  if (el && !el.value) el.value = fmtDate(now);
-})();
+;
 
 
+
+
+function showToast(msg, type) {
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:2rem;right:2rem;background:'+(type==='warn'?'#d97706':'#059669')+';color:#fff;padding:.8rem 1.4rem;border-radius:12px;font-weight:700;font-size:.9rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .3s';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){ t.remove(); },300); }, 2500);
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function openGoalModal() {
+  document.getElementById('modal-title').textContent = '🎯 목표 설정';
+  var rows = ALL_DEPTS.map(function(dept) {
+    var cur = goals[dept] || 25;
+    var rej = rejeokOverride[dept] || 0;
+    return '<div style="display:flex;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid var(--border)">'
+      + '<span style="font-weight:800;color:'+DEPT_RAW[dept]+';min-width:60px">'+dept+'</span>'
+      + '<div style="flex:1">'
+        + '<label style="font-size:.75rem;color:var(--muted)">활동률 목표 (%)</label>'
+        + '<input type="number" id="goal-'+dept+'" value="'+cur+'" min="1" max="100" style="width:80px;padding:.3rem .5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;margin-left:.5rem">'
+      + '</div>'
+      + '<div style="flex:1">'
+        + '<label style="font-size:.75rem;color:var(--muted)">재적 수동변경</label>'
+        + '<input type="number" id="rej-'+dept+'" value="'+rej+'" min="0" placeholder="자동" style="width:80px;padding:.3rem .5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;margin-left:.5rem">'
+      + '</div>'
+    + '</div>';
+  }).join('');
+  document.getElementById('modal-body').innerHTML =
+    '<div style="margin-bottom:1.2rem">'+rows+'</div>'
+    + '<div style="margin-top:1rem;padding:1rem;background:var(--surface2);border-radius:12px;border:1px solid var(--border)">'
+      + '<div style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:.8rem">📶 전도 단계 목표 (센터확답 목표 기준 역산)</div>'
+      + '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">'
+        + '<label style="font-size:.85rem;font-weight:700">센터확답 목표:</label>'
+        + '<input type="number" id="process-final-goal" value="'+(processGoals.finalGoal||0)+'" min="0" style="width:80px;padding:.3rem .5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem">'
+        + '<span style="font-size:.75rem;color:var(--muted)">명 → 단계별 향상률 입력 후 역산</span>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin-bottom:.8rem">'
+        + (function(){
+            var stageLabels = ['찾기→연결','연결→육따','육따→영따','영따→복방','복방→확답'];
+            var curRates = processGoals.rates || DEFAULT_RATES;
+            return stageLabels.map(function(label, i) {
+              return '<div style="background:var(--surface);border-radius:10px;padding:.6rem .8rem;border:1px solid var(--border)">'
+                + '<div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">'+label+'</div>'
+                + '<div style="display:flex;align-items:center;gap:.3rem">'
+                  + '<input type="number" id="rate-'+i+'" value="'+curRates[i]+'" min="1" max="100" style="width:60px;padding:.25rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.88rem">'
+                  + '<span style="font-size:.8rem;color:var(--muted)">%</span>'
+                + '</div>'
+              + '</div>';
+            }).join('');
+          })()
+      + '</div>'
+      + '<button onclick="previewFunnel()" style="padding:.35rem .9rem;border-radius:8px;background:var(--accent-light);color:var(--accent);border:1px solid var(--accent);font-size:.8rem;font-weight:700;cursor:pointer;margin-bottom:.6rem">🔍 역산 미리보기</button>'
+      + '<div id="funnel-preview"></div>'
+    + '</div>'
+    + '<div style="margin-top:1rem;text-align:right">'
+      + '<button onclick="applyGoals()" style="padding:.6rem 1.4rem;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">✅ 적용</button>'
+    + '</div>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
 
 </script>
 </body>
