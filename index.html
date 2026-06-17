@@ -1636,8 +1636,18 @@ function renderProcessView(totalResults) {
   var pg2Rates = pg2.rates || DEFAULT_RATES;
   var deptReqMap = {}; // {dept: [req0..5]}
   ALL_DEPTS.forEach(function(dept) {
-    var dg = pg2.deptGoals && pg2.deptGoals[dept] ? pg2.deptGoals[dept] : 0;
-    deptReqMap[dept] = dg > 0 ? calcRequiredByStage(dg, pg2Rates) : null;
+    var deptPg = pg2.deptGoals && pg2.deptGoals[dept];
+    var finalGoal = 0;
+    var rates = pg2Rates;
+    if (deptPg && typeof deptPg === 'object' && deptPg.finalGoal > 0) {
+      // 부서별 목표 있음
+      finalGoal = deptPg.finalGoal;
+      rates = deptPg.rates || pg2Rates;
+    } else if (pg2.finalGoal > 0) {
+      // 공통 목표로 폴백
+      finalGoal = pg2.finalGoal;
+    }
+    deptReqMap[dept] = finalGoal > 0 ? calcRequiredByStage(finalGoal, rates) : null;
   });
 
   function stepCell(val, prev, color, bg, label, stepIdx, dept) {
