@@ -289,8 +289,18 @@ textarea::placeholder{color:var(--muted);}
       <button class="period-tab active" onclick="switchPeriod('weekly',this)">주간</button>
       <button class="period-tab" onclick="switchPeriod('monthly',this)">월간</button>
       <button class="period-tab" onclick="switchPeriod('quarterly',this)">분기</button>
+      <button class="period-tab" onclick="switchPeriod('halfyear',this)">반기</button>
       <button class="period-tab" onclick="switchPeriod('yearly',this)">연간</button>
+      <button class="period-tab" onclick="switchPeriod('custom',this)">기간지정</button>
       <button class="period-tab" onclick="switchPeriod('dayofweek',this)">요일별</button>
+    </div>
+    <div id="custom-range-bar" style="display:none;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;padding:.8rem;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+      <label style="font-size:.82rem;font-weight:700">기간 설정</label>
+      <input type="date" id="custom-start" style="padding:.4rem .7rem;border-radius:8px;border:1.5px solid var(--border);font-size:.88rem;background:var(--surface)">
+      <span style="color:var(--muted)">~</span>
+      <input type="date" id="custom-end" style="padding:.4rem .7rem;border-radius:8px;border:1.5px solid var(--border);font-size:.88rem;background:var(--surface)">
+      <button onclick="applyCustomRange()" style="padding:.4rem 1rem;border-radius:8px;background:var(--accent);color:#fff;border:none;font-size:.85rem;font-weight:700;cursor:pointer">적용</button>
+      <div id="dayofweek-range-label" style="display:none;font-size:.78rem;color:var(--muted)">※ 요일별 분석에서도 이 기간이 적용됩니다</div>
     </div>
     <div id="trend-content"></div>
   </div>
@@ -1029,6 +1039,54 @@ function renderTrend(period){
   var el=document.getElementById('trend-content');
   if(!el)return;
   if(period==='dayofweek'){renderDayOfWeekView();return;}
+  if(period==='custom'){
+    var s=document.getElementById('custom-start')?.value;
+    var e=document.getElementById('custom-end')?.value;
+    if(!s||!e){el.innerHTML='<div style="text-align:center;padding:3rem;color:var(--muted)">위에서 기간을 설정하고 적용 버튼을 눌러주세요</div>';return;}
+    var filtered=history.filter(function(r){return r.date>=s&&r.date<=e;});
+    if(!filtered.length){el.innerHTML='<div style="text-align:center;padding:3rem;color:var(--muted)">해당 기간에 데이터가 없어요</div>';return;}
+    var agg=aggregatePeriod(filtered);
+    var totU=Math.round(ALL_DEPTS.reduce(function(sum,d){return sum+(agg[d]?agg[d].unique||0:0);},0)*10)/10;
+    var totT3=Math.round(ALL_DEPTS.reduce(function(sum,d){return sum+(agg[d]?agg[d].t3||0:0);},0)*10)/10;
+    var totT2=Math.round(ALL_DEPTS.reduce(function(sum,d){return sum+(agg[d]?agg[d].t2||0:0);},0)*10)/10;
+    var totT1=Math.round(ALL_DEPTS.reduce(function(sum,d){return sum+(agg[d]?agg[d].t1||0:0);},0)*10)/10;
+    var t3p=pct(totT3,totU),t2p=pct(totT2,totU),t1p=pct(totT1,totU);
+    var deptCards=ALL_DEPTS.map(function(dept){
+      var d=agg[dept];
+      if(!d||!d.unique)return'<div class="mini-dept-card" style="border-top-color:'+DEPT_RAW[dept]+';opacity:.4"><div class="mini-dept-name" style="color:'+DEPT_RAW[dept]+'">'+dept+'</div><div style="font-size:.75rem;color:var(--muted)">데이터 없음</div></div>';
+      var t3n=Math.round((d.t3||0)*10)/10,t2n=Math.round((d.t2||0)*10)/10,t1n=Math.round((d.t1||0)*10)/10;
+      return'<div class="mini-dept-card" style="border-top-color:'+DEPT_RAW[dept]+'">'
+        +'<div class="mini-dept-name" style="color:'+DEPT_RAW[dept]+'">'+dept+'</div>'
+        +'<div class="mini-dept-unique" style="color:'+DEPT_RAW[dept]+'">'+Math.round(d.unique*10)/10+'<span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">명</span></div>'
+        +'<div class="mini-dept-rate">재적대비 '+pct(d.unique,d.재적||1)+'%</div>'
+        +'<div class="mini-tier-bar"><div style="flex:'+t3n+';background:#dc2626;min-width:'+(t3n?2:0)+'px"></div><div style="flex:'+t2n+';background:#d97706;min-width:'+(t2n?2:0)+'px"></div><div style="flex:'+t1n+';background:#059669;min-width:'+(t1n?2:0)+'px"></div></div>'
+        +'<div class="mini-tier-nums"><span style="color:#dc2626">총력 '+t3n+'</span><span style="color:#d97706">주력 '+t2n+'</span><span style="color:#059669">활력 '+t1n+'</span></div>'
+        +'</div>';
+    }).join('');
+    el.innerHTML='<div class="period-card">'
+      +'<div class="period-card-header"><div>'
+        +'<div class="period-label">기간 지정</div>'
+        +'<div class="period-title">'+s.slice(5)+' ~ '+e.slice(5)+'</div>'
+        +'<div class="period-meta">'+filtered.length+'일 데이터</div>'
+      +'</div>'
+      +'<div class="period-total"><div class="period-total-num">'+totU+'</div>'
+        +'<div class="period-total-sub">전체 실질<br>'
+        +'<span style="color:#dc2626;font-size:.72rem">총력 '+totT3+'</span> '
+        +'<span style="color:#d97706;font-size:.72rem">주력 '+totT2+'</span> '
+        +'<span style="color:#059669;font-size:.72rem">활력 '+totT1+'</span></div>'
+      +'</div></div>'
+      +'<div class="tier-summary-bar">'
+        +'<div class="tier-bar-track"><div class="tier-seg" style="flex:'+totT3+';background:#dc2626;min-width:'+(totT3?3:0)+'px"></div><div class="tier-seg" style="flex:'+totT2+';background:#d97706;min-width:'+(totT2?3:0)+'px"></div><div class="tier-seg" style="flex:'+totT1+';background:#059669;min-width:'+(totT1?3:0)+'px"></div></div>'
+        +'<div style="display:flex;gap:1rem;margin-top:.4rem;flex-wrap:wrap">'
+          +'<span style="color:#dc2626;font-size:.75rem;font-weight:700">● 총력 '+totT3+'명 ('+t3p+'%)</span>'
+          +'<span style="color:#d97706;font-size:.75rem;font-weight:700">● 주력 '+totT2+'명 ('+t2p+'%)</span>'
+          +'<span style="color:#059669;font-size:.75rem;font-weight:700">● 활력 '+totT1+'명 ('+t1p+'%)</span>'
+        +'</div>'
+      +'</div>'
+      +'<div class="mini-dept-grid">'+deptCards+'</div>'
+      +'</div>';
+    return;
+  }
   if(!history.length){el.innerHTML='<div style="text-align:center;padding:4rem;color:var(--muted)">아직 누적 데이터가 없어요.<br>보고서를 입력하면 추이가 나타납니다.</div>';return;}
   var grouped={};
   history.forEach(function(row){
@@ -1851,13 +1909,25 @@ function weekEnd(dateStr){
 function periodKey(dateStr,period){
   if(period==='weekly') return weekStart(dateStr);
   if(period==='monthly') return dateStr.slice(0,7);
-  if(period==='quarterly'){const[y,m]=dateStr.split('-').map(Number);return`${y}-Q${Math.ceil(m/3)}`;}
+  if(period==='quarterly'){const[y,m]=dateStr.split('-').map(Number);return y+'-H'+Math.ceil(m/3);}
+  if(period==='halfyear'){const[y,m]=dateStr.split('-').map(Number);return y+'-S'+(m<=6?1:2);}
   return dateStr.slice(0,4);
 }
 function periodLabel(key,period){
-  if(period==='weekly'){const e=weekEnd(key+'T00:00:00');return`${key.slice(5)} ~ ${e.slice(5)}`;}
-  if(period==='monthly'){const[y,m]=key.split('-');return`${y}년 ${m}월`;}
-  if(period==='quarterly')return key.replace('-','년 ');
+  if(period==='weekly'){
+    // "6월 N주차" 형식
+    const[y,m,d]=key.split('-').map(Number);
+    const firstDay=new Date(y,m-1,1);
+    const firstSun=new Date(firstDay);
+    firstSun.setDate(1-firstDay.getDay()); // 해당 월 첫 날짜가 속한 주의 일요일
+    const weekDate=new Date(y,m-1,d);
+    const weekNum=Math.floor((weekDate-firstSun)/(7*86400000))+1;
+    const e=weekEnd(key+'T00:00:00');
+    return m+'월 '+weekNum+'주차 ('+key.slice(5)+' ~ '+e.slice(5)+')';
+  }
+  if(period==='monthly'){const[y,m]=key.split('-');return y+'년 '+parseInt(m)+'월';}
+  if(period==='quarterly'){const[y,h]=key.split('-H');return y+'년 '+h+'분기';}
+  if(period==='halfyear'){const[y,s]=key.split('-S');return y+'년 '+(s==='1'?'상반기':'하반기');}
   return key+'년';
 }
 
@@ -1893,7 +1963,24 @@ function switchPeriod(p,btn){
   currentPeriod=p;
   document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
+  var bar = document.getElementById('custom-range-bar');
+  var dowLabel = document.getElementById('dayofweek-range-label');
+  if(p==='custom'||p==='dayofweek'){
+    if(bar){bar.style.display='flex';}
+    if(dowLabel){dowLabel.style.display=(p==='dayofweek')?'block':'none';}
+    if(p==='custom'){renderTrend(p);return;}
+  } else {
+    if(bar){bar.style.display='none';}
+  }
   renderTrend(p);
+}
+
+function applyCustomRange(){
+  var s=document.getElementById('custom-start')?.value;
+  var e=document.getElementById('custom-end')?.value;
+  if(!s||!e){alert('시작일과 종료일을 선택해주세요');return;}
+  if(s>e){alert('시작일이 종료일보다 늦습니다');return;}
+  renderTrend(currentPeriod);
 }
 
 
@@ -1901,7 +1988,12 @@ function renderDayOfWeekView() {
   const el = document.getElementById('trend-content');
   const dayStats = {};
   DAY_KR.forEach((d,i) => dayStats[i] = {label:d, dates:[], totU:[], totT3:[], totT2:[], totT1:[], results:{신규찾기:[],연결:[],육따:[],영따:[],복음방:[],센터확답:[]}});
-  history.forEach(row => {
+  // 기간 필터 적용
+  var dowStart=document.getElementById('custom-start')?.value||'';
+  var dowEnd=document.getElementById('custom-end')?.value||'';
+  var dowHistory = (dowStart&&dowEnd) ? history.filter(function(r){return r.date>=dowStart&&r.date<=dowEnd;}) : history;
+  if(!dowHistory.length){el.innerHTML='<div style="text-align:center;padding:3rem;color:var(--muted)">해당 기간에 데이터가 없어요</div>';return;}
+  dowHistory.forEach(row => {
     const d = new Date(row.date + 'T00:00:00');
     const dow = d.getDay();
     const totU  = ALL_DEPTS.reduce((s,dept)=>s+(row[dept]?.unique||0),0);
@@ -1971,13 +2063,39 @@ function copyWeeklyReport() {
   navigator.clipboard.writeText(el.value).then(() => showToast('복사됨! 텔레그램에 붙여넣으세요'));
 }
 
-function openWeeklyReport() {
-  const recent = [...history].sort((a,b)=>a.date<b.date?1:-1).slice(0,7).reverse(); // 날짜 오름차순
+function openWeeklyReport(selectedWeekStart) {
+  if (!history.length) { showToast('데이터가 없어요','warn'); return; }
+  // 주차별 그룹핑
+  var weekGroups = {};
+  history.forEach(function(row) {
+    var ws = weekStart(row.date);
+    if (!weekGroups[ws]) weekGroups[ws] = [];
+    weekGroups[ws].push(row);
+  });
+  var weekKeys = Object.keys(weekGroups).sort().reverse(); // 최신순
+  var targetWeek = selectedWeekStart || weekKeys[0];
+  var weekRows = weekGroups[targetWeek] || [];
+  var recent = weekRows.sort(function(a,b){return a.date<b.date?-1:1;}); // 오름차순
   if (!recent.length) { showToast('데이터가 없어요','warn'); return; }
 
-  const startDate = recent[0].date;
-  const endDate   = recent[recent.length-1].date;
-  const latestRow = recent[recent.length-1];
+  // 주차 선택 드롭다운
+  var weekSelect = '<select onchange="openWeeklyReport(this.value)" style="padding:.35rem .8rem;border-radius:8px;border:1.5px solid var(--border);font-size:.88rem;background:var(--surface);cursor:pointer;margin-left:.5rem">'
+    + weekKeys.map(function(ws) {
+        var we = weekEnd(ws+'T00:00:00');
+        // 주차 번호 계산
+        var d = new Date(ws+'T00:00:00');
+        var m = d.getMonth()+1;
+        var firstSun = new Date(d.getFullYear(),d.getMonth(),1);
+        firstSun.setDate(1-firstSun.getDay());
+        var wn = Math.floor((d-firstSun)/(7*86400000))+1;
+        var label = m+'월 '+wn+'주차 ('+ws.slice(5)+' ~ '+we.slice(5)+')';
+        return '<option value="'+ws+'"'+(ws===targetWeek?' selected':'')+'>'+label+'</option>';
+      }).join('')
+    + '</select>';
+
+  const startDate = recent.length ? recent[0].date : targetWeek;
+  const endDate   = recent.length ? recent[recent.length-1].date : targetWeek;
+  const latestRow = recent.length ? recent[recent.length-1] : {};
 
   // 일별 집계
   const totals = recent.map(row => ({
@@ -2114,7 +2232,7 @@ function openWeeklyReport() {
     '━━━━━━━━━━━━━━━━━━━━━━━━'
   ].join('\n');
 
-  document.getElementById('modal-title').textContent = '주간 보고서 ('+startDate+' ~ '+endDate+')';
+  document.getElementById('modal-title').innerHTML = '주간 보고서' + weekSelect;
   document.getElementById('modal-body').innerHTML =
     // ── 전체 요약 ──
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem;margin-bottom:1.2rem">'
