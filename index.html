@@ -569,8 +569,18 @@ function parseReport(raw) {
     text = text.replace(re, '\n$1');
   });
 
-  // 번호) 패턴 앞 줄바꿈
+  // 번호) 패턴 앞 줄바꿈 (먼저 처리)
   text = text.replace(/(?<!\n)(\d+\))/g, '\n$1');
+
+  // 번호) 뒤에 섹션 키워드가 콜론 없이 바로 붙어있는 경우 분리
+  // 예: "1) 센터관리문소윤" -> "1) 센터관리\n문소윤"
+  // 예: "2) 전도활동이장원" -> "2) 전도활동\n이장원"
+  const GROUP_KW = ['센터관리','전도활동','전도단'];
+  GROUP_KW.forEach(kw => {
+    // "N) 키워드한글이름" 형태에서 키워드 뒤 이름 앞에 줄바꿈
+    const re2 = new RegExp('(\\d+\\)\\s*' + kw + '\\s*\\d*명?[^가-힣\n]*)([가-힣])', 'g');
+    text = text.replace(re2, '$1\n$2');
+  });
 
   // "- 한글" 앞 줄바꿈 (대시+이름이 붙어있을 때)
   text = text.replace(/(?<!\n)([-－]\s*[가-힣])/g, '\n$1');
@@ -605,22 +615,35 @@ function parseReport(raw) {
 
     if (isSectionHeader && /센터.?관리/.test(line) && !/결과/.test(line)) {
       mode = 'group:센터관리';
-      // 같은 줄에 이름이 있는 경우 처리 (헤더 뒤에 바로 이름)
-      const afterColon = line.replace(/.*센터.?관리\s*[：:]\s*\d*명?/, '');
+      const afterColon = line
+        .replace(/.*센터.?관리\s*[：:]\s*/, '')
+        .replace(/\d*명?\s*[（(][^)）]*[)）]/g, '')
+        .replace(/\d+명?/g, '')
+        .trim();
       const ns = extractNames(afterColon);
       if (ns.length) result.groups.센터관리.push(...ns);
       continue;
     }
     if (isSectionHeader && /전도.?활동/.test(line) && !/결과/.test(line) && !/보고/.test(line)) {
       mode = 'group:전도활동';
-      const afterColon = line.replace(/.*전도.?활동\s*[：:]\s*\d*명?/, '');
+      const afterColon = line
+        .replace(/.*전도.?활동\s*[：:]\s*/, '')
+        .replace(/\d*명?\s*[（(][^)）]*[)）]/g, '')
+        .replace(/\d+명?/g, '')
+        .trim();
       const ns = extractNames(afterColon);
       if (ns.length) result.groups.전도활동.push(...ns);
       continue;
     }
     if (isSectionHeader && /전도단/.test(line) && !/결과/.test(line)) {
       mode = 'group:전도단';
-      const afterColon = line.replace(/.*전도단\s*[：:]\s*\d*명?[^가-힣]*/, '');
+      // "전도단 : N명(대면:N/줌:N)" 패턴에서 이름 부분만 추출
+      // 숫자 없거나 0이면 빈 줄 처리
+      const afterColon = line
+        .replace(/.*전도단\s*[：:]\s*/, '')   // 헤더 제거
+        .replace(/\d*명?\s*[（(][^)）]*[)）]/g, '') // N명(대면:/줌:) 제거
+        .replace(/\d+명?/g, '')               // 나머지 숫자+명 제거
+        .trim();
       const ns = extractNames(afterColon);
       if (ns.length) result.groups.전도단.push(...ns);
       continue;
