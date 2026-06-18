@@ -649,10 +649,14 @@ function parseReport(raw) {
       continue;
     }
 
+    // 전도결과보고 헤더 만나면 그룹 모드 종료
+    if (/전도결과보고/.test(line)) { mode = null; continue; }
+
     // ── 섹션 헤더 — 전도결과 ──
     let resultMatched = false;
     for (const key of RESULT_KEYS) {
-      if (line.includes(key) && /\d+\s*명/.test(line)) {
+      // 숫자 없어도 콜론이 있으면 결과 섹션으로 전환 (예: "신규찾기 : 명")
+      if (line.includes(key) && (/\d+\s*명/.test(line) || /[：:]/.test(line))) {
         const cntM = line.match(/(\d+)\s*명/);
         result.results[key].count = cntM ? parseInt(cntM[1]) : 0;
         mode = 'result:' + key;
@@ -661,6 +665,22 @@ function parseReport(raw) {
         const afterNum = line.replace(/.*\d+\s*명/, '');
         const ns = extractResultNames(afterNum);
         if (ns.length) result.results[key].names.push(...ns);
+        break;
+      }
+    }
+    if (resultMatched) continue;
+
+    // 전도결과보고 헤더 → mode 리셋
+    if (/전도결과보고/.test(line)) { mode = null; continue; }
+
+    // 결과 섹션 키워드가 숫자 없이 나오는 경우도 mode 전환
+    // 예: "신규찾기 : 명" (숫자 없음)
+    for (const key of RESULT_KEYS) {
+      if (line.includes(key) && /[：:]/.test(line) && !resultMatched) {
+        const cntM = line.match(/(\d+)\s*명/);
+        result.results[key].count = cntM ? parseInt(cntM[1]) : 0;
+        mode = 'result:' + key;
+        resultMatched = true;
         break;
       }
     }
