@@ -1975,12 +1975,14 @@ function periodLabel(key,period){
 }
 
 // 기간 집계 (숫자 평균 + 명단 합집합)
-function aggregatePeriod(rows){
+function aggregatePeriod(rows, totalDaysOverride){
   const result={};
+  // 전체 기간 일수 (모든 부서 평균의 공통 분모로 사용 → 주간보고서와 일치)
+  const totalDays = totalDaysOverride || rows.length;
   ALL_DEPTS.forEach(dept=>{
     const entries=rows.filter(r=>r[dept]&&typeof r[dept]==='object');
     if(!entries.length){result[dept]=null;return;}
-    const days=entries.length;
+    const days=totalDays; // 부서별 보고일수가 아닌 전체 기간일수로 평균 (주간보고서와 동일 기준)
     const avg=f=>entries.reduce((s,r)=>s+(r[dept]?.[f]||0),0)/days;
     // 명단: 해당 기간에 한 번이라도 나온 사람 합집합
     const allT3=new Set(entries.flatMap(r=>r[dept]?.t3names||[]));
